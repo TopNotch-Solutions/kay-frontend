@@ -1,0 +1,149 @@
+import { useMemo, useState } from 'react';
+import { confirmAction } from '../../utils/confirmAction';
+import { useNavigate } from 'react-router-dom';
+import { createPatientVisit } from '../../api/patients';
+import { routingLabel } from './constants/routingOptions';
+import LookupPageHero from './components/lookup/LookupPageHero';
+import LookupResultsView from './components/lookup/LookupResultsView';
+import LookupSearchCard from './components/lookup/LookupSearchCard';
+import TodaysRegistrationsPanel from './components/TodaysRegistrationsPanel';
+import { useToast } from './context/ToastContext';
+import { useFlashNotice } from './hooks/useFlashNotice';
+import { usePatientSearch } from './hooks/usePatientSearch';
+import { useRegistration } from './RegistrationContext';
+import { lookup } from './styles/lookupClasses';
+import { patientName, REGISTRATION_ALLOWED_KEY } from './patientUtils';
+
+export default function FrontOfficeDashboardPage() {
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+  useFlashNotice(showToast);
+  const { loadPrefill } = useRegistration();
+
+  const {
+    searchMode,
+    setSearchMode,
+    phase,
+    nationalId,
+    setNationalId,
+    dob,
+    setDob,
+    name,
+    setName,
+    results,
+    loading,
+    resetSearch,
+    runSearch,
+  } = usePatientSearch({
+    onNavigateLogin: () => navigate('/login', { replace: true, state: { from: '/front_office' } }),
+  });
+
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkInPatientId, setCheckInPatientId] = useState(null);
+
+  const completeMatches = useMemo(() => results.filter((p) => p.profile_complete), [results]);
+  const partialMatches = useMemo(() => results.filter((p) => !p.profile_complete), [results]);
+
+  function startNewRegistration() {
+    const prefill = {};
+    if (searchMode === 'id' && nationalId.trim()) {
+      prefill.id_number = nationalId.trim();
+    } else {
+      prefill.date_of_birth = dob;
+      const parts = name.trim().split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        prefill.first_name = parts[0];
+        prefill.last_name = parts.slice(1).join(' ');
+      } else if (parts.length === 1) {
+        prefill.first_name = parts[0];
+      }
+    }
+    loadPrefill(prefill);
+    navigate('/front_office/registration/step-1');
+  }
+
+  function startCompleteRegistration(patient) {
+    loadPrefill({
+      first_name: patient.first_name || '',
+      last_name: patient.last_name || '',
+      date_of_birth: patient.date_of_birth || '',
+      sex: patient.sex === 'female' ? 'f' : patient.sex === 'male' ? 'm' : 'x',
+      id_number: patient.id_number || '',
+      phone: patient.phone || '',
+      address: patient.address || '',
+      payment_type: patient.payment_type === 'private' ? 'private' : 'state',
+    });
+    sessionStorage.setItem(REGISTRATION_ALLOWED_KEY, '1');
+    navigate('/front_office/registration/step-1');
+  }
+
+  async function handleCheckIn(patient, intake) {
+    const destLabel = routingLabel(intake.routing_destination) || intake.routing_destination;
+    if (!(await confirmAction({
+      title: 'Check in patient?',
+      text: intake.is_emergency
+        ? `Route ${patientName(patient)} to ${destLabel} with emergency priority?`
+        : `Check in ${patientName(patient)} and route to ${destLabel}?`,
+      icon: 'question',
+      confirmButtonText: 'Check in',
+    }))) return;
+    setCheckInLoading(true);
+    setCheckInPatientId(patient.id);
+    try {
+      const result = await createPatientVisit(patient.id, intake);
+      const dept = result.queueEntry?.department || intake.routing_destination;
+      const routedLabel = routingLabel(dept) || dept;
+      const msg = intake.is_emergency
+        ? `${patientName(patient)} routed to ${routedLabel} (emergency priority).`
+        : `${patientName(patient)} routed to ${routedLabel}.`;
+      showToast(msg, 'success');
+      resetSearch();
+    } catch (err) {
+      showToast(err.message || 'Check-in failed', 'error');
+    } finally {
+      setCheckInLoading(false);
+      setCheckInPatientId(null);
+    }
+  }
+
+  const showResults = phase === 'results' || phase === 'returning';
+
+  return (
+    <div className={lookup.page}>
+      <LookupPageHero phase={phase} />
+
+      {phase === 'find' ? (
+        <>
+          <LookupSearchCard
+            searchMode={searchMode}
+            onSearchModeChange={setSearchMode}
+            nationalId={nationalId}
+            onNationalIdChange={setNationalId}
+            dob={dob}
+            onDobChange={setDob}
+            name={name}
+            onNameChange={setName}
+            onSubmit={runSearch}
+            loading={loading}
+          />
+          <TodaysRegistrationsPanel compact limit={5} showHeaderLink />
+        </>
+      ) : null}
+
+      {showResults ? (
+        <LookupResultsView
+          results={results}
+          phase={phase}
+          completeMatches={completeMatches}
+          partialMatches={partialMatches}
+          onResetSearch={resetSearch}
+          onRegisterNew={startNewRegistration}
+          onCompleteRegistration={startCompleteRegistration}
+          onCheckIn={handleCheckIn}
+          checkInLoading={checkInLoading}
+          checkInPatientId={checkInPatientId}
+        />
+      ) : null}
+    </div>
+  );
+}
