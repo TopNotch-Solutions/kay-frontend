@@ -12,6 +12,7 @@ import PatientEhrPage from './pages/front_office/PatientEhrPage';
 import TodaysRegistrationsPage from './pages/front_office/TodaysRegistrationsPage';
 import DoctorPage from './pages/doctor';
 import SystemAdminPage from './pages/system_admin';
+import ReportingPage from './pages/reporting/ReportingPage';
 
 function RoleRoute({ role, children }) {
   return <RequireAuth role={role}>{children}</RequireAuth>;
@@ -53,6 +54,14 @@ function App() {
             <RoleRoute role="system_admin">
               <SystemAdminPage />
             </RoleRoute>
+          }
+        />
+        <Route
+          path="/reporting"
+          element={
+            <RequireAuth roles={['front_office', 'doctor', 'system_admin']}>
+              <ReportingPage />
+            </RequireAuth>
           }
         />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
