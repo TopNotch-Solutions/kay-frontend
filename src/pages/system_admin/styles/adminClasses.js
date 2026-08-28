@@ -103,7 +103,24 @@ export const FACILITY_TYPE_OPTIONS = [
   { value: 'health_center', label: 'Health Center' },
 ];
 
+export const KAY_ONE_FACILITY_NAME = 'Kay-One Dental';
 export const NATIONAL_ADMIN_FACILITY_NAME = 'National Health Administration';
+
+export function pickKayOneFacility(facilities) {
+  const list = facilities || [];
+  return (
+    list.find((f) => f.name === KAY_ONE_FACILITY_NAME)
+    || list.find(isOperationalFacility)
+    || list[0]
+    || null
+  );
+}
+
+export function displayFacilityName(facilityOrRow) {
+  const name = facilityOrRow?.facility?.name || facilityOrRow?.name;
+  if (!name || name === NATIONAL_ADMIN_FACILITY_NAME) return KAY_ONE_FACILITY_NAME;
+  return name;
+}
 
 export function isOperationalFacility(facility) {
   return facility?.name !== NATIONAL_ADMIN_FACILITY_NAME;

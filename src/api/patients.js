@@ -1,4 +1,54 @@
-import { apiRequest } from './client';
+import { apiRequest, getApiBase, handleUnauthorized } from './client';
+import { ensureAccessTokenFresh, getAccessToken, handleSessionExpired } from './authSession';
+import { disconnectSocket } from './socket';
+
+async function fetchPatientList(params = {}, isRetry = false) {
+  if (!isRetry) {
+    const ready = await ensureAccessTokenFresh();
+    if (!ready) {
+      disconnectSocket();
+      handleSessionExpired();
+      throw new Error('Session expired. Please sign in again.');
+    }
+  }
+
+  const q = new URLSearchParams();
+  if (params.page) q.set('page', String(params.page));
+  if (params.limit) q.set('limit', String(params.limit));
+  if (params.search) q.set('search', params.search);
+  const qs = q.toString();
+  const token = getAccessToken();
+  const res = await fetch(`${getApiBase()}/api/v1/patients${qs ? `?${qs}` : ''}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  const json = await res.json().catch(() => ({}));
+
+  if (res.status === 401) {
+    await handleUnauthorized(isRetry);
+    return fetchPatientList(params, true);
+  }
+
+  if (!res.ok || json.success === false) {
+    throw new Error(json.message || `Request failed (${res.status})`);
+  }
+
+  return {
+    patients: json.data || [],
+    pagination: json.pagination || {
+      total: (json.data || []).length,
+      page: params.page || 1,
+      limit: params.limit || 20,
+      totalPages: 1,
+    },
+  };
+}
+
+export function listPatients({ page = 1, limit = 20, search } = {}) {
+  return fetchPatientList({ page, limit, search });
+}
 
 export function searchPatients({ id_number, date_of_birth, name }) {
   const qs = new URLSearchParams();
@@ -20,9 +70,10 @@ export function getClinicalMedicalHistory(patientId) {
   return apiRequest(`/api/v1/patients/${patientId}/clinical-medical-history`);
 }
 
-export function getMedicalCard(patientId, { visit_id } = {}) {
+export function getMedicalCard(patientId, { visit_id, exclude_payment } = {}) {
   const q = new URLSearchParams();
   if (visit_id) q.set('visit_id', visit_id);
+  if (exclude_payment) q.set('exclude_payment', '1');
   const qs = q.toString();
   return apiRequest(`/api/v1/patients/${patientId}/medical-card${qs ? `?${qs}` : ''}`);
 }

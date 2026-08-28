@@ -3,6 +3,7 @@ import { startQueueEntry, releaseQueueEntry } from '../../api/queue';
 import DoctorTopbar from './components/DoctorTopbar';
 import DoctorWorkspace from './components/DoctorWorkspace';
 import DoctorPatientRecordLookup from '../../components/patient/DoctorPatientRecordLookup';
+import DoctorAppointmentsView from './components/DoctorAppointmentsView';
 import { useDoctorQueue, useDoctorSession, pickAutoResumeEntry } from './hooks/useDoctorQueue';
 import ActiveSessionQueueAside from '../../components/queue/ActiveSessionQueueAside';
 import QueueEntryCard from '../../components/queue/QueueEntryCard';
@@ -208,9 +209,9 @@ export default function DoctorConsultationPage() {
 
       <div className={c.body}>
         {viewMode === 'records' ? (
-          <div className={`${c.main} overflow-y-auto p-4`}>
-            <DoctorPatientRecordLookup showStatSummaryButton />
-          </div>
+          <DoctorPatientRecordLookup showStatSummaryButton />
+        ) : viewMode === 'appointments' ? (
+          <DoctorAppointmentsView onToast={setToast} />
         ) : (
         <>
         <aside className={c.queueAside} aria-label="Today's patient queue">

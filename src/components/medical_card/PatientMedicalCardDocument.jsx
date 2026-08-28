@@ -64,7 +64,7 @@ function FieldRow({ label, value, wide }) {
   );
 }
 
-function VisitSection({ visit, index }) {
+function VisitSection({ visit, index, showPaymentSummary }) {
   const billing = visit.billing;
 
   return (
@@ -133,46 +133,50 @@ function VisitSection({ visit, index }) {
         );
       })}
 
-      <h3 className="medical-card-subtitle">Payment summary</h3>
-      {billing ? (
+      {showPaymentSummary ? (
         <>
-          <div className="medical-card-grid">
-            <FieldRow label="Bill status" value={formatLabel(billing.status)} />
-            <FieldRow label="Total paid" value={formatMoney(billing.total_amount)} />
-            <FieldRow label="Cash" value={formatMoney(billing.cash_paid)} />
-            <FieldRow label="EFT" value={formatMoney(billing.eft_paid)} />
-            <FieldRow label="Paid at" value={formatDateTime(billing.paid_at)} />
-            <FieldRow label="Received by" value={billing.received_by} />
-          </div>
-          {(billing.items || []).length ? (
-            <table className="medical-card-table">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th>Category</th>
-                  <th>Amount (NAD)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {billing.items.map((item, itemIndex) => (
-                  <tr key={`${item.description}-${itemIndex}`}>
-                    <td>{item.description}</td>
-                    <td>{BILL_CATEGORY_LABELS[item.category] || formatLabel(item.category)}</td>
-                    <td className="medical-card-table__amount">{formatMoney(item.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : null}
+          <h3 className="medical-card-subtitle">Payment summary</h3>
+          {billing ? (
+            <>
+              <div className="medical-card-grid">
+                <FieldRow label="Bill status" value={formatLabel(billing.status)} />
+                <FieldRow label="Total paid" value={formatMoney(billing.total_amount)} />
+                <FieldRow label="Cash" value={formatMoney(billing.cash_paid)} />
+                <FieldRow label="EFT" value={formatMoney(billing.eft_paid)} />
+                <FieldRow label="Paid at" value={formatDateTime(billing.paid_at)} />
+                <FieldRow label="Received by" value={billing.received_by} />
+              </div>
+              {(billing.items || []).length ? (
+                <table className="medical-card-table">
+                  <thead>
+                    <tr>
+                      <th>Description</th>
+                      <th>Category</th>
+                      <th>Amount (NAD)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {billing.items.map((item, itemIndex) => (
+                      <tr key={`${item.description}-${itemIndex}`}>
+                        <td>{item.description}</td>
+                        <td>{BILL_CATEGORY_LABELS[item.category] || formatLabel(item.category)}</td>
+                        <td className="medical-card-table__amount">{formatMoney(item.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+            </>
+          ) : (
+            <p className="medical-card-muted">No bill recorded for this visit (state patient or no charges).</p>
+          )}
         </>
-      ) : (
-        <p className="medical-card-muted">No bill recorded for this visit (state patient or no charges).</p>
-      )}
+      ) : null}
     </section>
   );
 }
 
-export default forwardRef(function PatientMedicalCardDocument({ card }, ref) {
+export default forwardRef(function PatientMedicalCardDocument({ card, showPaymentSummary = true }, ref) {
   if (!card) return null;
 
   const refNo = String(card.patient?.patient_number || card.visits?.[0]?.visit_number || '')
@@ -200,7 +204,11 @@ export default forwardRef(function PatientMedicalCardDocument({ card }, ref) {
       <section className="medical-card-notes">
         <p className="medical-card-notes__title">PLEASE NOTE:</p>
         <ol className="medical-card-notes__list">
-          <li>This medical card summarises clinical care, staff attendance times, and payment details on file.</li>
+          <li>
+            {showPaymentSummary
+              ? 'This medical card summarises clinical care, staff attendance times, and payment details on file.'
+              : 'This medical card summarises clinical care and staff attendance times on file.'}
+          </li>
           <li>It is issued for patient records and continuity of care — not as a prescription or legal certificate.</li>
           <li>Staff names reflect clinicians and nurses documented in the system for each department visit.</li>
         </ol>
@@ -227,7 +235,12 @@ export default forwardRef(function PatientMedicalCardDocument({ card }, ref) {
           <p className="medical-card-muted">No visits on file for this scope.</p>
         ) : (
           card.visits.map((visit, index) => (
-            <VisitSection key={visit.id} visit={visit} index={index} />
+            <VisitSection
+              key={visit.id}
+              visit={visit}
+              index={index}
+              showPaymentSummary={showPaymentSummary}
+            />
           ))
         )}
       </section>

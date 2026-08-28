@@ -22,6 +22,7 @@ import AddIcd10Modal from './components/AddIcd10Modal';
 import AdminSidebar from './components/AdminSidebar';
 import AdminTopbar from './components/AdminTopbar';
 import RegisterEmployeeModal from './components/RegisterEmployeeModal';
+import EditEmployeeModal from './components/EditEmployeeModal';
 import RegisterSystemAdminModal from './components/RegisterSystemAdminModal';
 import { admin as c } from './styles/adminClasses';
 import AdminDashboardView from './views/AdminDashboardView';
@@ -68,6 +69,8 @@ export default function SystemAdminPage() {
   const [roleFilter, setRoleFilter] = useState('');
 
   const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
+  const [editEmployee, setEditEmployee] = useState(null);
+  const [editEmployeeModalOpen, setEditEmployeeModalOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
@@ -116,14 +119,10 @@ export default function SystemAdminPage() {
   const loadEmployees = useCallback(async () => {
     setEmployeesLoading(true);
     try {
-      const kayOne = (facilities || []).find((f) => f.name === 'Kay-One Dental')
-        || (facilities || []).find((f) => f.type === 'clinic')
-        || facilities?.[0];
       const { rows } = await getAdminUsers({
         limit: 200,
         search: search.trim() || undefined,
         status: statusFilter || undefined,
-        facility_id: kayOne?.id || undefined,
         role: roleFilter || undefined,
         exclude_role: 'system_admin',
       });
@@ -133,7 +132,7 @@ export default function SystemAdminPage() {
     } finally {
       setEmployeesLoading(false);
     }
-  }, [search, statusFilter, roleFilter, facilities]);
+  }, [search, statusFilter, roleFilter]);
 
   const loadSystemAdmins = useCallback(async () => {
     setAdminsLoading(true);
@@ -288,6 +287,28 @@ export default function SystemAdminPage() {
     }
   };
 
+  const handleEditEmployeeClick = (row) => {
+    setEditEmployee(row);
+    setEditEmployeeModalOpen(true);
+  };
+
+  const handleUpdateEmployee = async (payload) => {
+    if (!editEmployee?.id) return;
+    setSubmitting(true);
+    try {
+      const updated = await updateAdminUser(editEmployee.id, payload);
+      setEditEmployeeModalOpen(false);
+      setEditEmployee(null);
+      setToast(`${updated.first_name} ${updated.last_name} updated.`);
+      await loadEmployees();
+      await loadDashboard();
+    } catch (err) {
+      setToast(err.message || 'Could not update employee');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleToggleActive = async (row, activate) => {
     const confirmed = await confirmAction({
       title: activate ? 'Activate account?' : 'Inactivate account?',
@@ -393,7 +414,9 @@ export default function SystemAdminPage() {
         roleFilter={roleFilter}
         onRoleFilterChange={setRoleFilter}
         onRegisterClick={() => setEmployeeModalOpen(true)}
+        onEditClick={handleEditEmployeeClick}
         onToggleActive={handleToggleActive}
+        editingId={submitting && editEmployeeModalOpen ? editEmployee?.id : null}
         togglingId={togglingId}
       />
     );
@@ -478,6 +501,17 @@ export default function SystemAdminPage() {
         open={employeeModalOpen}
         onClose={() => setEmployeeModalOpen(false)}
         onSubmit={handleRegisterEmployee}
+        submitting={submitting}
+        facilities={facilities}
+      />
+      <EditEmployeeModal
+        open={editEmployeeModalOpen}
+        employee={editEmployee}
+        onClose={() => {
+          setEditEmployeeModalOpen(false);
+          setEditEmployee(null);
+        }}
+        onSubmit={handleUpdateEmployee}
         submitting={submitting}
         facilities={facilities}
       />

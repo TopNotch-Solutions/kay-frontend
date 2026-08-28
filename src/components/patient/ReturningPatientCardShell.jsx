@@ -18,15 +18,24 @@ function MetaItem({ label, value, mono }) {
 
 function StatusAlert({ variant, icon, title, children }) {
   const isError = variant === 'error';
+  const isInfo = variant === 'info';
+  const alertClass = isError
+    ? lookup.returningAlertError
+    : isInfo
+      ? lookup.returningAlertInfo
+      : lookup.returningAlertWarning;
+  const iconClass = isError
+    ? lookup.returningAlertIconError
+    : isInfo
+      ? lookup.returningAlertIconInfo
+      : lookup.returningAlertIconWarning;
+
   return (
     <div
-      className={`${lookup.returningAlert} ${isError ? lookup.returningAlertError : lookup.returningAlertWarning}`}
+      className={`${lookup.returningAlert} ${alertClass}`}
       role={isError ? 'alert' : 'status'}
     >
-      <span
-        className={`${lookup.returningAlertIcon} ${isError ? lookup.returningAlertIconError : lookup.returningAlertIconWarning}`}
-        aria-hidden
-      >
+      <span className={`${lookup.returningAlertIcon} ${iconClass}`} aria-hidden>
         {icon}
       </span>
       <div>
@@ -43,6 +52,9 @@ export default function ReturningPatientCardShell({
   eligible = true,
   ineligibleMessage,
   hasActiveVisit,
+  activeVisitVariant = 'warning',
+  activeVisitTitle,
+  activeVisitMessage,
   activeLocation,
   activeVisitNumber,
   children,
@@ -88,16 +100,24 @@ export default function ReturningPatientCardShell({
         ) : null}
 
         {hasActiveVisit ? (
-          <StatusAlert variant="warning" icon="!" title="Active visit in progress">
-            {activeVisitNumber ? (
-              <span className="font-mono">{activeVisitNumber}</span>
-            ) : null}
-            {activeVisitNumber && activeLocation ? ' · ' : null}
-            {activeLocation ? (
-              <>Currently in <span className="font-semibold capitalize">{activeLocation}</span></>
-            ) : null}
-            {!activeVisitNumber && !activeLocation ? 'Check-in is unavailable.' : null}
-            . Complete or discharge the current visit before a new check-in.
+          <StatusAlert
+            variant={activeVisitVariant}
+            icon={activeVisitVariant === 'info' ? '✓' : '!'}
+            title={activeVisitTitle}
+          >
+            {activeVisitMessage ?? (
+              <>
+                {activeVisitNumber ? (
+                  <span className="font-mono">{activeVisitNumber}</span>
+                ) : null}
+                {activeVisitNumber && activeLocation ? ' · ' : null}
+                {activeLocation ? (
+                  <>Currently in <span className="font-semibold capitalize">{activeLocation}</span></>
+                ) : null}
+                {!activeVisitNumber && !activeLocation ? 'Check-in is unavailable.' : null}
+                . Complete or discharge the current visit before a new check-in.
+              </>
+            )}
           </StatusAlert>
         ) : null}
 

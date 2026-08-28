@@ -2,26 +2,35 @@ import { io } from 'socket.io-client';
 import {
   getAccessToken,
   handleSessionExpired,
-  isAccessTokenExpired,
+  ensureAccessTokenFresh,
   refreshAccessToken,
 } from './authSession';
-import { getApiBase } from './client';
+import { getApiBase } from './apiBase';
 
 let socket = null;
+
+function isAuthTokenError(message = '') {
+  const msg = String(message).toLowerCase();
+  return (
+    msg === 'invalid token'
+    || msg === 'authentication required'
+    || msg.includes('jwt expired')
+    || msg.includes('token')
+  );
+}
 
 /**
  * Shared Socket.io client (JWT in handshake.auth.token).
  */
-export function getSocket() {
-  const token = getAccessToken();
-  if (!token) return null;
-
-  if (isAccessTokenExpired(token)) {
-    refreshAccessToken().then((refreshed) => {
-      if (!refreshed) handleSessionExpired();
-    });
+export async function getSocketAsync() {
+  const ready = await ensureAccessTokenFresh();
+  if (!ready) {
+    handleSessionExpired();
     return null;
   }
+
+  const token = getAccessToken();
+  if (!token) return null;
 
   if (!socket || socket.disconnected) {
     socket = io(getApiBase(), {
@@ -29,16 +38,19 @@ export function getSocket() {
       transports: ['websocket', 'polling'],
       autoConnect: true,
     });
-    socket.on('connect_error', (err) => {
+    socket.on('connect_error', async (err) => {
       const msg = err?.message || '';
-      if (
-        msg === 'Invalid token'
-        || msg === 'Authentication required'
-        || msg.toLowerCase().includes('token')
-      ) {
-        disconnectSocket();
-        handleSessionExpired();
+      if (!isAuthTokenError(msg)) return;
+
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        socket.auth = { token: refreshed };
+        socket.connect();
+        return;
       }
+
+      disconnectSocket();
+      handleSessionExpired();
     });
   } else if (socket.auth?.token !== token) {
     socket.auth = { token };
@@ -46,6 +58,22 @@ export function getSocket() {
   }
 
   return socket;
+}
+
+/** @deprecated Prefer getSocketAsync — sync path may skip refresh. */
+export function getSocket() {
+  const token = getAccessToken();
+  if (!token) return null;
+
+  ensureAccessTokenFresh().then((ready) => {
+    if (!ready) {
+      handleSessionExpired();
+      return;
+    }
+    getSocketAsync();
+  });
+
+  return socket?.connected ? socket : null;
 }
 
 export function disconnectSocket() {
@@ -57,10 +85,11 @@ export function disconnectSocket() {
 }
 
 export function requestDepartmentQueueRefresh(department) {
-  const s = getSocket();
-  if (s?.connected) {
-    s.emit('queue:request_refresh', department);
-  }
+  getSocketAsync().then((s) => {
+    if (s?.connected) {
+      s.emit('queue:request_refresh', department);
+    }
+  });
 }
 
 export function requestNurseQueueRefresh() {

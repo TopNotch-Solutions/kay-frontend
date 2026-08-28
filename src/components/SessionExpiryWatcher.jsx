@@ -1,21 +1,21 @@
 import { useEffect } from 'react';
 import {
-  accessTokenExpiresInMs,
   ensureAccessTokenFresh,
   getAccessToken,
+  getTokenRefreshDelayMs,
   handleSessionExpired,
-  isAccessTokenExpired,
+  shouldRefreshAccessToken,
 } from '../api/authSession';
 
 /**
- * While the employee is signed in, refresh before expiry or redirect to login when the session ends.
+ * While signed in, call /api/v1/auth/refresh before the access token expires.
  */
 export default function SessionExpiryWatcher() {
   useEffect(() => {
     let cancelled = false;
     let timerId = null;
 
-    async function onExpired() {
+    async function refreshSoon() {
       const stillValid = await ensureAccessTokenFresh();
       if (cancelled) return;
       if (!stillValid) {
@@ -33,15 +33,15 @@ export default function SessionExpiryWatcher() {
       const token = getAccessToken();
       if (!token) return;
 
-      if (isAccessTokenExpired(token)) {
-        onExpired();
+      if (shouldRefreshAccessToken(token)) {
+        refreshSoon();
         return;
       }
 
-      const ms = accessTokenExpiresInMs(token);
-      if (ms == null) return;
+      const delayMs = getTokenRefreshDelayMs(token);
+      if (delayMs == null) return;
 
-      timerId = setTimeout(onExpired, Math.max(ms, 0) + 250);
+      timerId = setTimeout(refreshSoon, delayMs + 250);
     }
 
     schedule();

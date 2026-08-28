@@ -221,9 +221,10 @@ export function getAdminPatientMedicalHistory(patientId, { facility_id, scope = 
   return apiRequest(`/api/v1/admin/patients/${patientId}/medical-history?${q}`);
 }
 
-export function getAdminMedicalCard(patientId, { visit_id } = {}) {
+export function getAdminMedicalCard(patientId, { visit_id, exclude_payment } = {}) {
   const q = new URLSearchParams();
   if (visit_id) q.set('visit_id', visit_id);
+  if (exclude_payment) q.set('exclude_payment', '1');
   const qs = q.toString();
   return apiRequest(`/api/v1/admin/patients/${patientId}/medical-card${qs ? `?${qs}` : ''}`);
 }
@@ -232,6 +233,7 @@ export async function downloadAdminMedicalHistoryExport(patientId, { facility_id
   const q = new URLSearchParams();
   if (facility_id) q.set('facility_id', String(facility_id));
   if (scope) q.set('scope', scope);
+  q.set('exclude_payment', '1');
   const res = await fetchBlobWithAuth(
     `/api/v1/admin/patients/${patientId}/medical-history/export?${q}`
   );

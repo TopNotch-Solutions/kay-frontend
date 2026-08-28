@@ -1,11 +1,8 @@
 import { getAccessToken, handleSessionExpired, refreshAccessToken, ensureAccessTokenFresh } from './authSession';
 import { disconnectSocket } from './socket';
+import { getApiBase } from './apiBase';
 
-const API_BASE = 'https://kay-one-api.kopanovertex.com';
-
-export function getApiBase() {
-  return API_BASE;
-}
+export { getApiBase };
 
 function sessionExpiredError() {
   const err = new Error('Session expired. Please sign in again.');
@@ -45,13 +42,13 @@ export async function apiRequest(path, options = {}, isRetry = false) {
 
   let res;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetch(`${getApiBase()}${path}`, {
       ...options,
       headers: { ...buildHeaders(), ...options.headers },
     });
   } catch (networkErr) {
     const err = new Error(
-      `Cannot reach the API at ${API_BASE}. Start the backend (npm start in /backend), then sign in again.`
+      `Cannot reach the API at ${getApiBase()}. Start the backend (npm start in /backend), then sign in again.`
     );
     err.cause = networkErr;
     err.isNetworkError = true;

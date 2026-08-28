@@ -1,7 +1,13 @@
-const API_BASE = 'https://kay-one-api.kopanovertex.com';
+import { getApiBase } from './apiBase';
 
-/** Seconds before JWT `exp` to treat the access token as expired (refresh early). */
+/** Treat access token as expired slightly before `exp` (clock skew). */
 const TOKEN_EXPIRY_SKEW_MS = 5000;
+
+/** Refresh proactively this many ms before JWT `exp`. */
+const TOKEN_REFRESH_LEAD_MS = 60_000;
+
+let sessionRedirectPending = false;
+let refreshInFlight = null;
 
 export function getAccessToken() {
   return localStorage.getItem('accessToken');
@@ -33,6 +39,20 @@ export function accessTokenExpiresInMs(token = getAccessToken()) {
   return payload.exp * 1000 - Date.now();
 }
 
+/** True when access token is missing or should be refreshed soon. */
+export function shouldRefreshAccessToken(token = getAccessToken()) {
+  if (!token) return true;
+  const ms = accessTokenExpiresInMs(token);
+  if (ms == null) return false;
+  return ms <= TOKEN_REFRESH_LEAD_MS;
+}
+
+export function getTokenRefreshDelayMs(token = getAccessToken()) {
+  const ms = accessTokenExpiresInMs(token);
+  if (ms == null) return null;
+  return Math.max(ms - TOKEN_REFRESH_LEAD_MS, 0);
+}
+
 export function getStoredUser() {
   try {
     const raw = localStorage.getItem('user');
@@ -47,8 +67,6 @@ export function clearSession() {
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
 }
-
-let sessionRedirectPending = false;
 
 /**
  * Send the user to the login page (full navigation so all modules reset).
@@ -69,11 +87,11 @@ export function handleSessionExpired() {
   redirectToLogin();
 }
 
-export async function refreshAccessToken() {
+async function performRefreshAccessToken() {
   const refreshToken = localStorage.getItem('refreshToken');
   if (!refreshToken) return null;
 
-  const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+  const res = await fetch(`${getApiBase()}/api/v1/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
@@ -92,12 +110,27 @@ export async function refreshAccessToken() {
 }
 
 /**
- * Refresh when the access token is missing or expired; otherwise no-op.
+ * POST /api/v1/auth/refresh — single-flight so parallel callers share one request.
+ */
+export async function refreshAccessToken() {
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = performRefreshAccessToken().finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
+}
+
+/**
+ * Refresh when the access token is missing or near expiry; otherwise no-op.
  * @returns {Promise<boolean>} true when a usable access token is available
  */
 export async function ensureAccessTokenFresh() {
   const token = getAccessToken();
-  if (token && !isAccessTokenExpired(token)) return true;
+  if (token && !shouldRefreshAccessToken(token)) return true;
   const refreshed = await refreshAccessToken();
   return Boolean(refreshed);
 }

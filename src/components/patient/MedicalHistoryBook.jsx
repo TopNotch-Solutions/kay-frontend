@@ -550,6 +550,7 @@ export default function MedicalHistoryBook({
                   patientId={patient.id}
                   visitId={medicalCardVisitId}
                   admin={medicalCardAdmin}
+                  hidePaymentSummary
                 />
               ) : null}
               <span className={styles.readOnlyBadge}>Read only</span>

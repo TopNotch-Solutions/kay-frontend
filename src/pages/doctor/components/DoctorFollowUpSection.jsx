@@ -1,22 +1,13 @@
 import { IntakeInput, IntakeTextarea } from '../../nurse/components/IntakeField';
 import { nurse as c } from '../../nurse/styles/nurseClasses';
-
-function tomorrowIsoDate() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+import { minFollowUpDateInClinicTz } from '../../../utils/clinicDate';
 
 export default function DoctorFollowUpSection({ followUp, onFollowUpChange, error = '' }) {
   function setField(key, value) {
     onFollowUpChange({ ...followUp, [key]: value });
   }
 
-  const minDate = tomorrowIsoDate();
+  const minDate = minFollowUpDateInClinicTz();
 
   return (
     <section className={c.sectionPanel} aria-labelledby="doc-follow-up-heading">

@@ -1,12 +1,12 @@
-import { admin as c } from '../styles/adminClasses';
+import { admin as c, displayFacilityName, KAY_ONE_FACILITY_NAME } from '../styles/adminClasses';
 
 function fullName(row) {
   return [row.first_name, row.last_name].filter(Boolean).join(' ').trim() || '—';
 }
 
 function adminScopeLabel(row) {
-  if (row.admin_scope === 'national') return 'All hospitals & clinics';
-  return row.facility?.name || '—';
+  if (row.admin_scope === 'national' || row.admin_scope === 'facility') return KAY_ONE_FACILITY_NAME;
+  return displayFacilityName(row);
 }
 
 export default function SystemAdminManagementView({
@@ -27,7 +27,7 @@ export default function SystemAdminManagementView({
         <div>
           <h2 className={c.sectionTitle}>System administrators</h2>
           <p className={c.sectionDesc}>
-            National accounts with access to every state hospital and clinic. Use inactivate instead
+            Kay-One Dental system administrators. Use inactivate instead
             of delete — records stay in audit logs.
           </p>
         </div>

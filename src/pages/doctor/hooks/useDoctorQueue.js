@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getDepartmentQueue } from '../../../api/queue';
-import { getSocket, requestDoctorQueueRefresh } from '../../../api/socket';
+import { getSocketAsync, requestDoctorQueueRefresh } from '../../../api/socket';
 import { getStoredUser } from '../../../api/authSession';
 import { filterActiveQueueEntries } from '../../nurse/nurseQueueUtils';
 import { mapDoctorQueueEntry } from '../doctorQueueUtils';
@@ -36,64 +36,71 @@ export function useDoctorQueue({ onQueueSynced } = {}) {
 
   useEffect(() => {
     let cancelled = false;
+    let detachListeners = null;
+
     (async () => {
       await loadQueueHttp();
       if (!cancelled) setLoading(false);
-    })();
 
-    const socket = getSocket();
-    if (!socket) {
-      setError((prev) => prev || 'Sign in required for live queue updates.');
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const handleRefresh = ({ department, entries }) => {
-      if (department !== DOCTOR_DEPT) return;
-      applyEntries(entries);
-      setLoading(false);
-    };
-
-    const handlePatientMoved = (payload) => {
-      const { entryId, status, department } = payload || {};
-      if (department && department !== DOCTOR_DEPT) return;
-      if (status === 'completed' || status === 'skipped') {
-        setQueue((prev) => prev.filter((p) => p.entryId !== entryId));
+      const socket = await getSocketAsync();
+      if (!socket || cancelled) {
+        if (!cancelled) {
+          setError((prev) => prev || 'Sign in required for live queue updates.');
+        }
         return;
       }
-      requestDoctorQueueRefresh();
-    };
 
-    const handleLiveEvent = () => requestDoctorQueueRefresh();
+      const handleRefresh = ({ department, entries }) => {
+        if (department !== DOCTOR_DEPT) return;
+        applyEntries(entries);
+        setLoading(false);
+      };
 
-    const onConnect = () => {
-      setLive(true);
-      requestDoctorQueueRefresh();
-    };
-    const onDisconnect = () => setLive(false);
+      const handlePatientMoved = (payload) => {
+        const { entryId, status, department } = payload || {};
+        if (department && department !== DOCTOR_DEPT) return;
+        if (status === 'completed' || status === 'skipped') {
+          setQueue((prev) => prev.filter((p) => p.entryId !== entryId));
+          return;
+        }
+        requestDoctorQueueRefresh();
+      };
 
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('queue:refresh', handleRefresh);
-    socket.on('queue:new_patient', handleLiveEvent);
-    socket.on('queue:patient_moved', handlePatientMoved);
+      const handleLiveEvent = () => requestDoctorQueueRefresh();
 
-    if (socket.connected) onConnect();
+      const onConnect = () => {
+        setLive(true);
+        requestDoctorQueueRefresh();
+      };
+      const onDisconnect = () => setLive(false);
+
+      socket.on('connect', onConnect);
+      socket.on('disconnect', onDisconnect);
+      socket.on('queue:refresh', handleRefresh);
+      socket.on('queue:new_patient', handleLiveEvent);
+      socket.on('queue:patient_moved', handlePatientMoved);
+
+      if (socket.connected) onConnect();
+
+      detachListeners = () => {
+        socket.off('connect', onConnect);
+        socket.off('disconnect', onDisconnect);
+        socket.off('queue:refresh', handleRefresh);
+        socket.off('queue:new_patient', handleLiveEvent);
+        socket.off('queue:patient_moved', handlePatientMoved);
+      };
+    })();
 
     return () => {
       cancelled = true;
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('queue:refresh', handleRefresh);
-      socket.off('queue:new_patient', handleLiveEvent);
-      socket.off('queue:patient_moved', handlePatientMoved);
+      detachListeners?.();
     };
   }, [applyEntries, loadQueueHttp]);
 
   const refresh = useCallback(async () => {
     const mapped = await loadQueueHttp();
-    if (getSocket()?.connected) {
+    const socket = await getSocketAsync();
+    if (socket?.connected) {
       requestDoctorQueueRefresh();
     }
     return mapped;

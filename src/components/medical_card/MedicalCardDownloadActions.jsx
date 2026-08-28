@@ -8,6 +8,7 @@ export default function MedicalCardDownloadActions({
   patientId,
   visitId = null,
   admin = false,
+  hidePaymentSummary = false,
   className = '',
 }) {
   const [loadingScope, setLoadingScope] = useState('');
@@ -19,7 +20,10 @@ export default function MedicalCardDownloadActions({
     setLoadingScope(scope);
     setError('');
     try {
-      const params = scope === 'visit' && visitId ? { visit_id: visitId } : {};
+      const params = {
+        ...(scope === 'visit' && visitId ? { visit_id: visitId } : {}),
+        ...(hidePaymentSummary ? { exclude_payment: true } : {}),
+      };
       const payload = admin
         ? await getAdminMedicalCard(patientId, params)
         : await getMedicalCard(patientId, params);
@@ -29,7 +33,7 @@ export default function MedicalCardDownloadActions({
     } finally {
       setLoadingScope('');
     }
-  }, [admin, patientId, visitId]);
+  }, [admin, hidePaymentSummary, patientId, visitId]);
 
   function handleClose() {
     setCard(null);
@@ -60,7 +64,13 @@ export default function MedicalCardDownloadActions({
       {error ? (
         <p className="mt-2 text-xs text-red-700" role="alert">{error}</p>
       ) : null}
-      {card ? <MedicalCardDownloadModal card={card} onClose={handleClose} /> : null}
+      {card ? (
+        <MedicalCardDownloadModal
+          card={card}
+          onClose={handleClose}
+          showPaymentSummary={!hidePaymentSummary}
+        />
+      ) : null}
     </>
   );
 }

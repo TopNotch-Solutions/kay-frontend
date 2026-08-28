@@ -19,6 +19,7 @@ import {
 } from '../doctorDentalExamForm';
 import DoctorConsultationForm from './DoctorConsultationForm';
 import { confirmAction } from '../../../utils/confirmAction';
+import { isFollowUpDateInFuture } from '../../../utils/clinicDate';
 import ConsultationMedicalHistoryPanel from '../../../components/patient/ConsultationMedicalHistoryPanel';
 
 function parseStoredDiagnoses(diagnosisText) {
@@ -270,14 +271,7 @@ export default function DoctorWorkspace({
       return false;
     }
     if (hasDate) {
-      const tomorrow = new Date();
-      tomorrow.setHours(0, 0, 0, 0);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const y = tomorrow.getFullYear();
-      const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
-      const d = String(tomorrow.getDate()).padStart(2, '0');
-      const minDate = `${y}-${m}-${d}`;
-      if (followUp.date < minDate) {
+      if (!isFollowUpDateInFuture(followUp.date)) {
         setFollowUpError('Follow-up date must be a future date (tomorrow or later).');
         document.getElementById('doc-follow-up-heading')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return false;

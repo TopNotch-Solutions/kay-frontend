@@ -10,7 +10,7 @@ export default function AdminTopbar({ adminLabel, initials }) {
       <div className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-2">
         <AppBrand className={c.topbar.brand} />
         <span className="text-sm font-medium text-teal-700">
-          National administrator · Kay-One Dental
+          System administrator · Kay-One Dental
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-3 sm:gap-4">

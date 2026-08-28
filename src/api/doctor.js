@@ -14,6 +14,17 @@ export function getConsultationsByVisit(visitId) {
   return apiRequest(`${BASE}/visit/${visitId}`);
 }
 
+export function getDoctorAppointments() {
+  return apiRequest(`${BASE}/appointments`);
+}
+
+export function cancelDoctorAppointment(consultationId, body) {
+  return apiRequest(`${BASE}/appointments/${consultationId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 export function updateConsultation(id, body) {
   return apiRequest(`${BASE}/${id}`, {
     method: 'PUT',

@@ -49,6 +49,24 @@ export function activeVisitLocation(patient) {
   return formatDepartmentLabel(visit.queue_department || visit.current_department);
 }
 
+/** Patient has an open visit and is waiting or being seen in the doctor queue. */
+export function isPatientInDoctorQueue(patient) {
+  const visit = patient?.active_visit;
+  if (!visit) return false;
+  if (visit.in_doctor_queue) return true;
+  const dept = visit.queue_department || visit.current_department;
+  if (dept !== 'doctor') return false;
+  const status = visit.queue_status;
+  return status === 'waiting' || status === 'in_progress';
+}
+
+export function isDoctorConsultationInProgress(patient) {
+  const visit = patient?.active_visit;
+  if (!visit) return false;
+  if (visit.consultation_in_progress) return true;
+  return isPatientInDoctorQueue(patient) && visit.queue_status === 'in_progress';
+}
+
 export function mapSexToApi(value) {
   if (value === 'f' || value === 'female') return 'female';
   if (value === 'm' || value === 'male') return 'male';

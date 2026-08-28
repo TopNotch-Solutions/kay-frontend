@@ -31,6 +31,13 @@ export default function DoctorTopbar({ doctorLabel, initials, live, viewMode, on
             >
               Patient records
             </button>
+            <button
+              type="button"
+              className={`rounded-md px-3 py-1.5 ${viewMode === 'appointments' ? 'bg-white text-teal-800 shadow-sm' : 'text-slate-600'}`}
+              onClick={() => onViewModeChange('appointments')}
+            >
+              Appointments
+            </button>
           </nav>
         ) : null}
       </div>

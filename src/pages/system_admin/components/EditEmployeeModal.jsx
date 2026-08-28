@@ -1,51 +1,64 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAdminRoles } from '../../../api/admin';
-import { admin as c, pickKayOneFacility, KAY_ONE_FACILITY_NAME } from '../styles/adminClasses';
+import { admin as c, pickKayOneFacility, displayFacilityName, KAY_ONE_FACILITY_NAME } from '../styles/adminClasses';
 
-const EMPTY = {
-  first_name: '',
-  last_name: '',
-  email: '',
-  phone: '',
-  role_id: '',
-  facility_id: '',
-};
+function buildForm(employee) {
+  if (!employee) {
+    return {
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      role_id: '',
+      facility_id: '',
+    };
+  }
+  return {
+    first_name: employee.first_name || '',
+    last_name: employee.last_name || '',
+    email: employee.email || '',
+    phone: employee.phone || '',
+    role_id: employee.role?.id ? String(employee.role.id) : '',
+    facility_id: employee.facility?.id ? String(employee.facility.id) : '',
+  };
+}
 
-export default function RegisterEmployeeModal({
+export default function EditEmployeeModal({
   open,
+  employee,
   onClose,
   onSubmit,
   submitting,
   facilities,
 }) {
-  const [form, setForm] = useState(EMPTY);
+  const [form, setForm] = useState(() => buildForm(employee));
   const [roles, setRoles] = useState([]);
   const [rolesLoading, setRolesLoading] = useState(false);
   const [rolesError, setRolesError] = useState('');
 
-  const kayOneFacility = useMemo(() => pickKayOneFacility(facilities), [facilities]);
+  const facility = useMemo(() => {
+    if (employee?.facility) {
+      return { ...employee.facility, name: displayFacilityName(employee) };
+    }
+    return pickKayOneFacility(facilities);
+  }, [employee, facilities]);
 
   useEffect(() => {
     if (!open) return;
-    setForm({
-      ...EMPTY,
-      facility_id: kayOneFacility?.id || '',
-    });
-  }, [open, kayOneFacility?.id]);
+    setForm(buildForm(employee));
+    setRolesError('');
+  }, [open, employee]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || !form.facility_id) return undefined;
 
     let cancelled = false;
     const loadRoles = async () => {
       setRolesLoading(true);
       setRolesError('');
       try {
-        let list = [];
-        if (form.facility_id) {
-          list = await getAdminRoles({ facility_id: form.facility_id });
-        }
-        if ((!list || list.length === 0)) {
+        let list = await getAdminRoles({ facility_id: form.facility_id });
+        if (!list?.length) {
           list = await getAdminRoles({ context: 'clinic' });
         }
         if (!cancelled) setRoles(Array.isArray(list) ? list : []);
@@ -63,64 +76,87 @@ export default function RegisterEmployeeModal({
     return () => { cancelled = true; };
   }, [open, form.facility_id]);
 
-  if (!open) return null;
+  if (!open || !employee) return null;
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.facility_id) return;
     if (!form.role_id) return;
     if (!String(form.phone || '').trim()) return;
     await onSubmit({
-      ...form,
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+      email: form.email.trim(),
       phone: String(form.phone).trim(),
+      role_id: Number(form.role_id),
     });
   };
+
+  const employeeLabel = [employee.first_name, employee.last_name].filter(Boolean).join(' ').trim();
 
   return (
     <div className={c.modalBackdrop} role="presentation" onClick={onClose}>
       <div
         className={c.modal}
         role="dialog"
-        aria-labelledby="register-employee-title"
+        aria-labelledby="edit-employee-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="register-employee-title" className={c.modalTitle}>
-          Register new employee
+        <h2 id="edit-employee-title" className={c.modalTitle}>
+          Update employee
         </h2>
         <p className={c.modalSub}>
-          Staff are assigned to Kay-One Dental. An 8-digit temporary password is sent by SMS;
-          the employee must set a new password on first sign-in.
+          Edit details for <strong>{employeeLabel || 'this employee'}</strong>. Facility assignment
+          is managed separately via transfer when needed.
         </p>
 
         <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className={c.label} htmlFor="emp-first">
+              <label className={c.label} htmlFor="edit-emp-first">
                 First name
               </label>
-              <input id="emp-first" className={c.input} value={form.first_name} onChange={set('first_name')} required />
+              <input
+                id="edit-emp-first"
+                className={c.input}
+                value={form.first_name}
+                onChange={set('first_name')}
+                required
+              />
             </div>
             <div>
-              <label className={c.label} htmlFor="emp-last">
+              <label className={c.label} htmlFor="edit-emp-last">
                 Last name
               </label>
-              <input id="emp-last" className={c.input} value={form.last_name} onChange={set('last_name')} required />
+              <input
+                id="edit-emp-last"
+                className={c.input}
+                value={form.last_name}
+                onChange={set('last_name')}
+                required
+              />
             </div>
           </div>
           <div>
-            <label className={c.label} htmlFor="emp-email">
+            <label className={c.label} htmlFor="edit-emp-email">
               Email
             </label>
-            <input id="emp-email" type="email" className={c.input} value={form.email} onChange={set('email')} required />
+            <input
+              id="edit-emp-email"
+              type="email"
+              className={c.input}
+              value={form.email}
+              onChange={set('email')}
+              required
+            />
           </div>
           <div>
-            <label className={c.label} htmlFor="emp-phone">
+            <label className={c.label} htmlFor="edit-emp-phone">
               Cellphone number
             </label>
             <input
-              id="emp-phone"
+              id="edit-emp-phone"
               type="tel"
               className={c.input}
               value={form.phone}
@@ -130,23 +166,23 @@ export default function RegisterEmployeeModal({
             />
           </div>
           <div>
-            <label className={c.label} htmlFor="emp-facility">
+            <label className={c.label} htmlFor="edit-emp-facility">
               Facility
             </label>
             <input
-              id="emp-facility"
+              id="edit-emp-facility"
               className={c.input}
-              value={kayOneFacility?.name || KAY_ONE_FACILITY_NAME}
+              value={facility?.name || KAY_ONE_FACILITY_NAME}
               readOnly
               disabled
             />
           </div>
           <div>
-            <label className={c.label} htmlFor="emp-role">
+            <label className={c.label} htmlFor="edit-emp-role">
               Role
             </label>
             <select
-              id="emp-role"
+              id="edit-emp-role"
               className={c.input}
               value={form.role_id}
               onChange={set('role_id')}
@@ -176,9 +212,9 @@ export default function RegisterEmployeeModal({
             <button
               type="submit"
               className={c.btnPrimary}
-              disabled={submitting || rolesLoading || !form.facility_id || !form.role_id}
+              disabled={submitting || rolesLoading || !form.role_id}
             >
-              {submitting ? 'Registering…' : 'Register employee'}
+              {submitting ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </form>

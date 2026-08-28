@@ -6,7 +6,7 @@ import {
   clearSession,
   ensureAccessTokenFresh,
   handleSessionExpired,
-  isAccessTokenExpired,
+  shouldRefreshAccessToken,
 } from '../api/authSession';
 import { authRoleSlug, homePathForRole, isRoleAllowedForPath } from '../utils/homePathForRole';
 import SessionExpiryWatcher from './SessionExpiryWatcher';
@@ -18,7 +18,10 @@ import SessionExpiryWatcher from './SessionExpiryWatcher';
 export default function RequireAuth({ children, role, roles }) {
   const location = useLocation();
   const token = getAccessToken();
-  const [sessionReady, setSessionReady] = useState(() => Boolean(token && !isAccessTokenExpired(token)));
+  const [sessionReady, setSessionReady] = useState(() => {
+    const t = getAccessToken();
+    return Boolean(t && !shouldRefreshAccessToken(t));
+  });
 
   useEffect(() => {
     if (!token) {
@@ -27,7 +30,7 @@ export default function RequireAuth({ children, role, roles }) {
     }
     let cancelled = false;
     (async () => {
-      if (!isAccessTokenExpired(token)) {
+      if (!shouldRefreshAccessToken(token)) {
         if (!cancelled) setSessionReady(true);
         return;
       }

@@ -330,7 +330,7 @@ export default function PatientRecordsView() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {patient?.id ? (
-                <MedicalCardDownloadActions patientId={patient.id} admin />
+                <MedicalCardDownloadActions patientId={patient.id} admin hidePaymentSummary />
               ) : null}
               <button
                 type="button"

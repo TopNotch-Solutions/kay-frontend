@@ -82,10 +82,12 @@ export const lookup = {
   returningAlert:
     'flex gap-3 rounded-xl border px-4 py-3 text-sm leading-relaxed',
   returningAlertWarning: 'border-amber-200/80 bg-amber-50 text-amber-950',
+  returningAlertInfo: 'border-teal-200/80 bg-teal-50 text-teal-950',
   returningAlertError: 'border-rose-200/80 bg-rose-50 text-rose-950',
   returningAlertIcon:
     'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base font-bold',
   returningAlertIconWarning: 'bg-amber-100 text-amber-800',
+  returningAlertIconInfo: 'bg-teal-100 text-teal-800',
   returningAlertIconError: 'bg-rose-100 text-rose-800',
   returningFooter:
     'flex flex-col gap-2 border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6',

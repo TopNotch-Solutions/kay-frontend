@@ -1,11 +1,11 @@
-import { admin as c } from '../styles/adminClasses';
+import { admin as c, displayFacilityName } from '../styles/adminClasses';
 
 function fullName(row) {
   return [row.first_name, row.last_name].filter(Boolean).join(' ').trim() || '—';
 }
 
 function facilityName(row) {
-  return row.facility?.name || '—';
+  return displayFacilityName(row);
 }
 
 function roleLabel(row) {
@@ -23,7 +23,9 @@ export default function EmployeeManagementView({
   onRoleFilterChange,
   roleFilter,
   onRegisterClick,
+  onEditClick,
   onToggleActive,
+  editingId,
   togglingId,
 }) {
   return (
@@ -121,6 +123,17 @@ export default function EmployeeManagementView({
                     </td>
                     <td className={c.td}>
                       <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className={c.btnSecondary}
+                          disabled={
+                            (editingId === row.id && editingId != null)
+                            || togglingId === row.id
+                          }
+                          onClick={() => onEditClick(row)}
+                        >
+                          {editingId === row.id ? 'Saving…' : 'Edit'}
+                        </button>
                         {inactive ? (
                           <button
                             type="button"

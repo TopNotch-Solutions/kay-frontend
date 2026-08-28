@@ -3,7 +3,7 @@ import PatientMedicalCardDocument from './PatientMedicalCardDocument';
 import { medicalCardFilename, printMedicalCard } from './printMedicalCard';
 import './patientMedicalCard.css';
 
-export default function MedicalCardDownloadModal({ card, onClose }) {
+export default function MedicalCardDownloadModal({ card, onClose, showPaymentSummary = true }) {
   const cardRef = useRef(null);
   const [printing, setPrinting] = useState(false);
 
@@ -43,7 +43,11 @@ export default function MedicalCardDownloadModal({ card, onClose }) {
           Suggested filename: {medicalCardFilename(card)}
         </p>
         <div className="medical-card-modal-preview">
-          <PatientMedicalCardDocument ref={cardRef} card={card} />
+          <PatientMedicalCardDocument
+            ref={cardRef}
+            card={card}
+            showPaymentSummary={showPaymentSummary}
+          />
         </div>
       </div>
     </div>
