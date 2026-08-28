@@ -325,10 +325,10 @@ function ConsultationTimelinePage({ consultation, identity, pageNumber, styles }
           {consultation.stepCount > 0 ? (
             <>
               <p className={styles.pathwayLabel}>
-                Care pathway · {consultation.stepCount} step{consultation.stepCount !== 1 ? 's' : ''}
+                Doctor · {consultation.stepCount} record{consultation.stepCount !== 1 ? 's' : ''}
               </p>
 
-              <ol className={styles.timeline} aria-label="Consultation care pathway">
+              <ol className={styles.timeline} aria-label="Doctor consultation records">
                 {consultation.steps.map((step, index) => (
                   <TimelineStep
                     key={step.id}
@@ -340,7 +340,7 @@ function ConsultationTimelinePage({ consultation, identity, pageNumber, styles }
               </ol>
             </>
           ) : (
-            <p className="mt-4 text-sm text-slate-500">No clinical stops recorded for this visit.</p>
+            <p className="mt-4 text-sm text-slate-500">No doctor records for this visit.</p>
           )}
         </div>
       </div>
