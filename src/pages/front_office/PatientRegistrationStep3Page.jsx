@@ -33,7 +33,7 @@ function Step3Form() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { draft, updateField, patchDraft } = useRegistration();
-  const [showErrors, setShowErrors] = useState(false);
+  const [shownErrors, setShownErrors] = useState({});
   const [otpCode, setOtpCode] = useState('');
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -88,17 +88,30 @@ function Step3Form() {
   const phoneError = validatePhone(cellPhone, { required: true, label: 'cell phone number' });
   const invalid = {
     consent_patient_full_name: isBlank(draft.consent_patient_full_name),
-    consent_signer_name: isBlank(draft.consent_signer_name),
-    consent_relationship: isBlank(draft.consent_relationship),
+    consent_signer_name: isSelf ? false : isBlank(draft.consent_signer_name),
+    consent_relationship: !isSelf && isBlank(draft.consent_relationship),
     consent_date: isBlank(draft.consent_date),
     cell_phone: Boolean(phoneError),
     consent_otp: !draft.consent_otp_verified,
   };
-  const err = (key) => showErrors && invalid[key];
+  const err = (key) => Boolean(shownErrors[key] && invalid[key]);
+
+  function markErrors(keys) {
+    setShownErrors(
+      keys.reduce((acc, key) => {
+        acc[key] = true;
+        return acc;
+      }, {})
+    );
+  }
+
+  function clearShownErrors() {
+    setShownErrors({});
+  }
 
   async function handleSendOtp() {
     if (phoneError) {
-      setShowErrors(true);
+      markErrors(['cell_phone']);
       showToast(phoneError, 'error');
       return;
     }
@@ -125,7 +138,7 @@ function Step3Form() {
       return;
     }
     if (!otpCode.trim()) {
-      setShowErrors(true);
+      markErrors(['consent_otp']);
       showToast('Enter the OTP received on the cell phone.', 'error');
       return;
     }
@@ -136,9 +149,9 @@ function Step3Form() {
         consent_otp_verified: true,
         consent_otp_phone: cellPhone,
       });
+      clearShownErrors();
       showToast('OTP verified — consent signature accepted.', 'success');
     } catch (e) {
-      patchDraft({ consent_otp_verified: false });
       showToast(e.message || 'OTP verification failed', 'error');
     } finally {
       setVerifyingOtp(false);
@@ -147,24 +160,34 @@ function Step3Form() {
 
   function onNext(e) {
     e.preventDefault();
-    setShowErrors(true);
     if (invalid.consent_patient_full_name) {
+      markErrors(['consent_patient_full_name']);
       showToast('Patient / dependant full name is required.', 'error');
       return;
     }
-    if (invalid.consent_relationship) {
+    if (!isSelf && invalid.consent_relationship) {
+      markErrors(['consent_relationship']);
       showToast('Select relationship to patient.', 'error');
       return;
     }
-    if (invalid.consent_signer_name) {
+    if (!isSelf && invalid.consent_signer_name) {
+      markErrors(['consent_signer_name']);
       showToast('Patient name / Guardian is required.', 'error');
       return;
     }
+    if (isSelf) {
+      const signerName = (draft.consent_signer_name || draft.consent_patient_full_name || fullName).trim();
+      if (signerName && signerName !== (draft.consent_signer_name || '').trim()) {
+        patchDraft({ consent_signer_name: signerName });
+      }
+    }
     if (invalid.consent_date) {
+      markErrors(['consent_date']);
       showToast('Consent date is required.', 'error');
       return;
     }
     if (phoneError) {
+      markErrors(['cell_phone']);
       showToast(
         'A valid cell phone number from Step 1 is required to send the OTP signature.',
         'error'
@@ -172,9 +195,11 @@ function Step3Form() {
       return;
     }
     if (!draft.consent_otp_verified) {
+      markErrors(['consent_otp']);
       showToast('Verify the OTP to sign the consent before continuing.', 'error');
       return;
     }
+    clearShownErrors();
     navigate('/front_office/registration/step-4');
   }
 
@@ -222,6 +247,11 @@ function Step3Form() {
                   if (isSelf) patch.consent_signer_name = name;
                   patchDraft(patch);
                   setOtpCode('');
+                  setShownErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.consent_patient_full_name;
+                    return next;
+                  });
                 }}
               />
             </p>
@@ -234,7 +264,7 @@ function Step3Form() {
           <div className={`${fo.fieldRow} mt-5`}>
             <p className={fo.field}>
               <label className={fo.label} htmlFor="fo-consent-relationship">
-                Relationship to patient *
+                Relationship to patient{isSelf ? '' : ' *'}
               </label>
               <select
                 id="fo-consent-relationship"
@@ -269,7 +299,7 @@ function Step3Form() {
 
           <p className={`${fo.field} mt-4`}>
             <label className={fo.label} htmlFor="fo-consent-signer">
-              Patient name / Guardian *
+              Patient name / Guardian{isSelf ? '' : ' *'}
             </label>
             <input
               id="fo-consent-signer"
@@ -344,15 +374,10 @@ function Step3Form() {
                 id="fo-consent-otp"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                className={withError(fo.input, err('consent_otp') && !draft.consent_otp_verified)}
+                className={withError(fo.input, err('consent_otp'))}
                 placeholder="6-digit code"
                 value={otpCode}
-                onChange={(e) => {
-                  setOtpCode(e.target.value);
-                  if (draft.consent_otp_verified) {
-                    updateField('consent_otp_verified', false);
-                  }
-                }}
+                onChange={(e) => setOtpCode(e.target.value)}
               />
             </p>
             <button

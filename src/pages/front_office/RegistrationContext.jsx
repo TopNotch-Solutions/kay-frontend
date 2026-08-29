@@ -120,7 +120,10 @@ export function RegistrationProvider({ children }) {
     const telephone = (draft.telephone || '').trim();
     const primaryPhone = cellPhone || telephone || (draft.phone || '').trim();
     const hasMedicalAid = Boolean((draft.medical_aid_name || '').trim());
-    const consentSigner = (draft.consent_signer_name || '').trim();
+    const isSelfConsent = (draft.consent_relationship || '').trim() === 'Self';
+    const consentSigner =
+      (draft.consent_signer_name || '').trim()
+      || (isSelfConsent ? (draft.consent_patient_full_name || '').trim() : '');
 
     const medical_history = {
       treated_by_doctor: draft.treated_by_doctor,
@@ -141,7 +144,7 @@ export function RegistrationProvider({ children }) {
     const consent = {
       patient_full_name: (draft.consent_patient_full_name || '').trim() || null,
       signer_name: consentSigner || null,
-      relationship: (draft.consent_relationship || '').trim() || null,
+      relationship: (draft.consent_relationship || (isSelfConsent ? 'Self' : '')).trim() || null,
       date: (draft.consent_date || '').trim() || null,
       otp_verified: Boolean(draft.consent_otp_verified),
       otp_phone: (draft.consent_otp_phone || primaryPhone || '').trim() || null,
@@ -177,6 +180,7 @@ export function RegistrationProvider({ children }) {
   const submitRegistration = useCallback(async () => {
     setSubmitting(true);
     setSubmitError('');
+    const isSelfConsent = (draft.consent_relationship || '').trim() === 'Self';
     try {
       const payload = buildPayload();
       if (!payload.first_name || !payload.last_name || !payload.sex) {
@@ -193,7 +197,7 @@ export function RegistrationProvider({ children }) {
       if (idError) throw new Error(idError);
       const phoneError = validatePhone(payload.phone || '', { required: true, label: 'cell phone number' });
       if (phoneError) throw new Error(phoneError);
-      if (!payload.emergency_contact_name) {
+      if (!payload.emergency_contact_name && !isSelfConsent) {
         throw new Error('Consent signer (patient name / guardian) is required.');
       }
       const data = await registerPatient(payload);
@@ -207,10 +211,18 @@ export function RegistrationProvider({ children }) {
       return data;
     } catch (err) {
       setSubmitError(err.message || 'Registration failed');
+      // Keep consent OTP verified in draft/session when submit fails after verification.
+      if (draft.consent_otp_verified) {
+        persist({
+          ...draft,
+          consent_otp_verified: true,
+          consent_otp_sent: draft.consent_otp_sent || true,
+        });
+      }
     } finally {
       setSubmitting(false);
     }
-  }, [buildPayload, clearDraft, navigate, draft.consent_otp_verified]);
+  }, [buildPayload, clearDraft, navigate, draft, persist]);
 
   const value = useMemo(
     () => ({

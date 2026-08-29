@@ -5,7 +5,6 @@ import {
   getConsultationsByVisit,
 } from '../../../api/doctor';
 import { completeQueueEntry } from '../../../api/queue';
-import { checkMedicationStock } from '../../../api/inventory';
 import { vitalsToIntakeForm, emptyMedLine, commitMedLineToList, buildPrescriptionItemPayload } from '../doctorConsultForm';
 import {
   emptyDoctorVitalsForm,
@@ -41,10 +40,6 @@ function prescriptionItemsToLines(consultation) {
       recurring_day_of_month: item.recurring_day_of_month ?? '',
       recurring_weekdays: item.recurring_weekdays || [],
       recurring_dates: item.recurring_dates || [],
-      stock_status: item.stock_status || (item.is_available === false ? 'out_of_stock' : 'in_stock'),
-      stock_label: item.stock_label || (item.is_available === false ? 'Out of stock' : 'In stock'),
-      quantity_in_stock: item.stock_at_prescribe ?? item.quantity_in_stock ?? 0,
-      can_dispense: item.is_available !== false && item.can_dispense !== false,
     }));
   }
 
@@ -61,10 +56,6 @@ function prescriptionItemsToLines(consultation) {
         recurring_day_of_month: item.recurring_day_of_month ?? '',
         recurring_weekdays: item.recurring_weekdays || [],
         recurring_dates: item.recurring_dates || [],
-        stock_status: item.is_available === false ? 'out_of_stock' : 'in_stock',
-        stock_label: item.is_available === false ? 'Out of stock' : 'In stock',
-        quantity_in_stock: item.stock_at_prescribe ?? 0,
-        can_dispense: item.is_available !== false,
       });
     });
   });
@@ -91,37 +82,6 @@ export default function DoctorWorkspace({
   const [complaintError, setComplaintError] = useState('');
   const [followUpError, setFollowUpError] = useState('');
   const [routingError, setRoutingError] = useState('');
-  const [liveStock, setLiveStock] = useState(null);
-  const [stockChecking, setStockChecking] = useState(false);
-
-  useEffect(() => {
-    const name = medLine.medication_name?.trim();
-    const qty = Number(medLine.quantity) || 1;
-    if (!name) {
-      setLiveStock(null);
-      return undefined;
-    }
-
-    let cancelled = false;
-    setStockChecking(true);
-    const timer = setTimeout(() => {
-      checkMedicationStock(name, qty)
-        .then((data) => {
-          if (!cancelled) setLiveStock(data);
-        })
-        .catch(() => {
-          if (!cancelled) setLiveStock(null);
-        })
-        .finally(() => {
-          if (!cancelled) setStockChecking(false);
-        });
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [medLine.medication_name, medLine.quantity]);
 
   const intakeForm = useMemo(
     () => vitalsToIntakeForm(patient?.vitals),
@@ -140,7 +100,6 @@ export default function DoctorWorkspace({
     setFollowUp(emptyFollowUpForm());
     setMedLine(emptyMedLine());
     setPrescriptionLines([]);
-    setLiveStock(null);
     setMedFieldErrors({});
     setComplaintError('');
     setFollowUpError('');
@@ -234,11 +193,9 @@ export default function DoctorWorkspace({
   function addMedToList() {
     commitMedLineToList({
       medLine,
-      liveStock,
       setPrescriptionLines,
       setMedFieldErrors,
       setMedLine,
-      setLiveStock,
     });
   }
 
@@ -265,7 +222,6 @@ export default function DoctorWorkspace({
       await completeQueueEntry(patient.entryId, {});
       setPrescriptionLines([]);
       setMedLine(emptyMedLine());
-      setLiveStock(null);
       onToast(`Consultation completed for ${patient.name}.`);
       onDone();
     } catch (err) {
@@ -308,8 +264,6 @@ export default function DoctorWorkspace({
         medLine={medLine}
         medFieldErrors={medFieldErrors}
         onMedFieldChange={setMedField}
-        liveStock={liveStock}
-        stockChecking={stockChecking}
         prescriptionLines={prescriptionLines}
         onAddMedToList={addMedToList}
         onRemoveMedLine={removeMedLine}

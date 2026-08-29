@@ -21,8 +21,6 @@ export default function DoctorConsultationForm({
   medLine,
   medFieldErrors,
   onMedFieldChange,
-  liveStock,
-  stockChecking,
   prescriptionLines,
   onAddMedToList,
   onRemoveMedLine,
@@ -81,8 +79,6 @@ export default function DoctorConsultationForm({
         medLine={medLine}
         medFieldErrors={medFieldErrors}
         onMedFieldChange={onMedFieldChange}
-        liveStock={liveStock}
-        stockChecking={stockChecking}
         prescriptionLines={prescriptionLines}
         onAddMedToList={onAddMedToList}
         onRemoveMedLine={onRemoveMedLine}

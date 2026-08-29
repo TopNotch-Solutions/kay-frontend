@@ -1,6 +1,5 @@
 import { emptyIntakeForm } from '../nurse/nurseIntakeForm';
 import { defaultScheduleFields, buildPrescriptionItemPayload, validatePrescriptionSchedule } from '../../utils/prescriptionSchedule';
-import { buildDoctorPrescriptionLine } from '../../utils/pharmacyStockDisplay';
 
 export { buildPrescriptionItemPayload, validatePrescriptionSchedule };
 
@@ -91,11 +90,9 @@ export const emptyMedLine = () => ({
  */
 export function commitMedLineToList({
   medLine,
-  liveStock,
   setPrescriptionLines,
   setMedFieldErrors,
   setMedLine,
-  setLiveStock,
   emptyMedLineFn = emptyMedLine,
 }) {
   const name = medLine.medication_name?.trim();
@@ -112,18 +109,14 @@ export function commitMedLineToList({
   const qty = Number(medLine.quantity) || 1;
   setPrescriptionLines((lines) => [
     ...lines,
-    buildDoctorPrescriptionLine(
-      {
-        ...medLine,
-        medication_name: name,
-        dosage: dose,
-        quantity: qty,
-      },
-      liveStock
-    ),
+    {
+      ...medLine,
+      medication_name: name,
+      dosage: dose,
+      quantity: qty,
+    },
   ]);
   setMedLine(emptyMedLineFn());
-  setLiveStock?.(null);
   setMedFieldErrors({});
   return true;
 }
