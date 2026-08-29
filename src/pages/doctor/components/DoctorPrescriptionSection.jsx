@@ -70,13 +70,9 @@ function DoctorStockStatusPanel({ stock, checking }) {
 }
 
 export default function DoctorPrescriptionSection({
-  catalog,
-  catalogLoading,
-  catalogError = '',
   medLine,
   medFieldErrors,
   onMedFieldChange,
-  onMedicationSelect,
   liveStock,
   stockChecking,
   prescriptionLines,
@@ -129,62 +125,18 @@ export default function DoctorPrescriptionSection({
         </div>
       ) : null}
 
-      {catalogError ? (
-        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
-          {catalogError}
-        </p>
-      ) : null}
-
       <div className="mt-4 space-y-4">
         <div className={c.vitalsGrid}>
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-700">Medication *</span>
-            <select
-              className={`${c.input} mt-1 w-full`}
-              value={medLine.medication_name}
-              disabled={catalogLoading || !(catalog || []).length}
-              onChange={(e) => onMedicationSelect(e.target.value)}
-            >
-              <option value="">
-                {catalogLoading
-                  ? 'Loading medications…'
-                  : (catalog || []).length
-                    ? 'Select medication…'
-                    : 'No medications available'}
-              </option>
-              {(catalog || []).map((item) => {
-                const label = item.name || item.medication_name;
-                return (
-                  <option key={item.id || label} value={label}>
-                    {label}
-                    {item.generic || item.generic_name
-                      ? ` (${item.generic || item.generic_name})`
-                      : ''}
-                  </option>
-                );
-              })}
-            </select>
-            {medFieldErrors.medication_name ? (
-              <p className="mt-1 text-xs text-red-600">{medFieldErrors.medication_name}</p>
-            ) : null}
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-700">Generic name</span>
-            <select
-              className={`${c.input} mt-1 w-full disabled:bg-slate-50 disabled:text-slate-400`}
-              value={medLine.generic_name || ''}
-              disabled={!medLine.medication_name}
-              onChange={(e) => onMedFieldChange('generic_name', e.target.value)}
-            >
-              <option value="">
-                {medLine.medication_name ? 'Generic (auto-filled)' : 'Select medication first'}
-              </option>
-              {medLine.generic_name ? (
-                <option value={medLine.generic_name}>{medLine.generic_name}</option>
-              ) : null}
-            </select>
-          </label>
+          <IntakeInput
+            id="doc-med-name"
+            label="Medication"
+            required
+            error={medFieldErrors.medication_name}
+            className={c.input}
+            placeholder="Enter medication name"
+            value={medLine.medication_name}
+            onChange={(e) => onMedFieldChange('medication_name', e.target.value)}
+          />
 
           <IntakeInput
             id="doc-med-dose"
@@ -368,9 +320,6 @@ export default function DoctorPrescriptionSection({
                     <div className="min-w-0 flex-1">
                       <span>
                         <strong>{line.medication_name}</strong>
-                        {line.generic_name ? (
-                          <span className="text-slate-600"> ({line.generic_name})</span>
-                        ) : null}
                         {' '}
                         — {line.dosage}
                         {line.frequency ? ` (${line.frequency})` : ''} ×{line.quantity}

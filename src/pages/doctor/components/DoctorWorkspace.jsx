@@ -5,7 +5,7 @@ import {
   getConsultationsByVisit,
 } from '../../../api/doctor';
 import { completeQueueEntry } from '../../../api/queue';
-import { checkMedicationStock, getMedicationCatalog } from '../../../api/inventory';
+import { checkMedicationStock } from '../../../api/inventory';
 import { vitalsToIntakeForm, emptyMedLine, commitMedLineToList, buildPrescriptionItemPayload } from '../doctorConsultForm';
 import {
   emptyDoctorVitalsForm,
@@ -22,20 +22,6 @@ import { confirmAction } from '../../../utils/confirmAction';
 import { isFollowUpDateInFuture } from '../../../utils/clinicDate';
 import ConsultationMedicalHistoryPanel from '../../../components/patient/ConsultationMedicalHistoryPanel';
 
-function parseStoredDiagnoses(diagnosisText) {
-  if (!diagnosisText || typeof diagnosisText !== 'string') return [];
-  return diagnosisText
-    .split(';')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const m = part.match(/^([A-Z]\d{2}(?:\.\d+)?)\s*[—–-]\s*(.+)$/i);
-      if (m) return { code: m[1].toUpperCase(), label: m[2].trim() };
-      return null;
-    })
-    .filter(Boolean);
-}
-
 function prescriptionItemsToLines(consultation) {
   const prescriptions = consultation?.prescriptions;
   if (!Array.isArray(prescriptions) || !prescriptions.length) {
@@ -47,7 +33,6 @@ function prescriptionItemsToLines(consultation) {
     })();
     return fromActions.map((item) => ({
       medication_name: item.medication_name || '',
-      generic_name: item.generic_name || '',
       dosage: item.dosage || '',
       frequency: item.frequency || '',
       quantity: item.quantity || 1,
@@ -68,7 +53,6 @@ function prescriptionItemsToLines(consultation) {
     (rx.items || []).forEach((item) => {
       lines.push({
         medication_name: item.medication_name || '',
-        generic_name: '',
         dosage: item.dosage || '',
         frequency: item.frequency || '',
         quantity: item.quantity || 1,
@@ -96,8 +80,7 @@ export default function DoctorWorkspace({
   onDone,
 }) {
   const [clinicalNotes, setClinicalNotes] = useState('');
-  const [diagnoses, setDiagnoses] = useState([]);
-  const [icdInput, setIcdInput] = useState('');
+  const [diagnosis, setDiagnosis] = useState('');
   const [vitalsForm, setVitalsForm] = useState(() => emptyDoctorVitalsForm());
   const [dentalExam, setDentalExam] = useState(() => emptyDentalExamForm());
   const [followUp, setFollowUp] = useState(() => emptyFollowUpForm());
@@ -105,42 +88,11 @@ export default function DoctorWorkspace({
   const [medLine, setMedLine] = useState(emptyMedLine);
   const [prescriptionLines, setPrescriptionLines] = useState([]);
   const [medFieldErrors, setMedFieldErrors] = useState({});
-  const [diagnosisErrors, setDiagnosisErrors] = useState({});
   const [complaintError, setComplaintError] = useState('');
   const [followUpError, setFollowUpError] = useState('');
   const [routingError, setRoutingError] = useState('');
-  const [medCatalog, setMedCatalog] = useState([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
-  const [catalogError, setCatalogError] = useState('');
   const [liveStock, setLiveStock] = useState(null);
   const [stockChecking, setStockChecking] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setCatalogLoading(true);
-    setCatalogError('');
-    getMedicationCatalog()
-      .then((rows) => {
-        if (cancelled) return;
-        const list = Array.isArray(rows) ? rows : [];
-        setMedCatalog(list);
-        if (list.length === 0) {
-          setCatalogError('No medications in catalog. Run backend migration and medication catalog seed.');
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setMedCatalog([]);
-          setCatalogError(err.message || 'Could not load medication catalog.');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setCatalogLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     const name = medLine.medication_name?.trim();
@@ -182,8 +134,7 @@ export default function DoctorWorkspace({
 
   useEffect(() => {
     setClinicalNotes('');
-    setDiagnoses([]);
-    setIcdInput('');
+    setDiagnosis('');
     setConsultationId(null);
     setDentalExam(emptyDentalExamForm());
     setFollowUp(emptyFollowUpForm());
@@ -191,7 +142,6 @@ export default function DoctorWorkspace({
     setPrescriptionLines([]);
     setLiveStock(null);
     setMedFieldErrors({});
-    setDiagnosisErrors({});
     setComplaintError('');
     setFollowUpError('');
     setRoutingError('');
@@ -206,9 +156,7 @@ export default function DoctorWorkspace({
           setDentalExam(dentalExamToForm(latest.dental_exam));
           setFollowUp(followUpToForm(latest.dental_exam.follow_up));
         }
-        const restored = parseStoredDiagnoses(latest?.diagnosis);
-        if (restored.length) setDiagnoses(restored);
-        else if (latest?.diagnosis?.trim()) setIcdInput(latest.diagnosis.trim());
+        if (latest?.diagnosis?.trim()) setDiagnosis(latest.diagnosis.trim());
         const rxLines = prescriptionItemsToLines(latest);
         if (rxLines.length) setPrescriptionLines(rxLines);
       })
@@ -218,32 +166,6 @@ export default function DoctorWorkspace({
   function setMedField(key, value) {
     setMedLine((prev) => ({ ...prev, [key]: value }));
     setMedFieldErrors((prev) => {
-      if (!prev[key]) return prev;
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-  }
-
-  function handleMedicationSelect(medicationName) {
-    const entry = medCatalog.find(
-      (c) => c.name === medicationName || c.medication_name === medicationName
-    );
-    setMedLine((prev) => ({
-      ...prev,
-      medication_name: medicationName,
-      generic_name: entry?.generic || entry?.generic_name || '',
-    }));
-    setMedFieldErrors((prev) => {
-      if (!prev.medication_name) return prev;
-      const next = { ...prev };
-      delete next.medication_name;
-      return next;
-    });
-  }
-
-  function clearDiagnosisError(key) {
-    setDiagnosisErrors((prev) => {
       if (!prev[key]) return prev;
       const next = { ...prev };
       delete next[key];
@@ -281,35 +203,11 @@ export default function DoctorWorkspace({
     return true;
   }
 
-  function selectIcd({ code, description }) {
-    if (!code) return;
-    clearDiagnosisError('icd');
-    clearDiagnosisError('diagnoses');
-    const label = description || code;
-    if (!diagnoses.some((d) => d.code === code)) {
-      setDiagnoses((d) => [...d, { code, label }]);
-    }
-    setIcdInput('');
-  }
-
-  function removeDiagnosis(code) {
-    setDiagnoses((d) => d.filter((x) => x.code !== code));
-    clearDiagnosisError('diagnoses');
-    clearDiagnosisError('icd');
-  }
-
-  function buildDiagnosisForSave() {
-    const tagPart = diagnoses.map((d) => `${d.code} — ${d.label}`).join('; ');
-    const free = icdInput.trim();
-    if (tagPart && free) return `${tagPart}; ${free}`;
-    return tagPart || free || null;
-  }
-
   async function ensureConsultation() {
-    const diagnosis = buildDiagnosisForSave();
+    const diagnosisValue = diagnosis.trim() || null;
     const prescriptionItems = prescriptionLines.map((item) => buildPrescriptionItemPayload(item));
     const payload = {
-      diagnosis: diagnosis || null,
+      diagnosis: diagnosisValue,
       notes: clinicalNotes || null,
       actions_taken: {
         nurse_intake: intakeForm,
@@ -397,36 +295,19 @@ export default function DoctorWorkspace({
         onDentalExamChange={setDentalExam}
         complaintError={complaintError}
         allergy={patient.allergy}
-        icdInput={icdInput}
-        onIcdInputChange={(value) => {
-          setIcdInput(value);
-          if (value.trim()) {
-            clearDiagnosisError('icd');
-            clearDiagnosisError('diagnoses');
-          }
-        }}
-        onSelectIcd={selectIcd}
-        diagnoses={diagnoses}
-        diagnosisErrors={diagnosisErrors}
-        onRemoveDiagnosis={removeDiagnosis}
+        diagnosis={diagnosis}
+        onDiagnosisChange={setDiagnosis}
         clinicalNotes={clinicalNotes}
-        onClinicalNotesChange={(value) => {
-          setClinicalNotes(value);
-          if (value.trim()) clearDiagnosisError('clinicalNotes');
-        }}
+        onClinicalNotesChange={setClinicalNotes}
         followUp={followUp}
         onFollowUpChange={(next) => {
           setFollowUp(next);
           if ((next.date || '').trim()) setFollowUpError('');
         }}
         followUpError={followUpError}
-        catalog={medCatalog}
-        catalogLoading={catalogLoading}
-        catalogError={catalogError}
         medLine={medLine}
         medFieldErrors={medFieldErrors}
         onMedFieldChange={setMedField}
-        onMedicationSelect={handleMedicationSelect}
         liveStock={liveStock}
         stockChecking={stockChecking}
         prescriptionLines={prescriptionLines}

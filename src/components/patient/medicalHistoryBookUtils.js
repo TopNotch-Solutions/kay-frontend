@@ -9,6 +9,10 @@ import {
   pushDetail,
 } from './clinicalDetailFormatters';
 import { formatPrescriptionScheduleLabel } from '../../utils/prescriptionSchedule';
+import {
+  formatDentalChartingSummary,
+  hasDentalCharting,
+} from '../../pages/doctor/dentalChartConfig';
 
 function asObject(raw) {
   if (!raw) return null;
@@ -228,6 +232,10 @@ function dentalExamDetailLines(raw) {
     pushDetail(lines, label, intra[key]);
   });
 
+  if (hasDentalCharting(exam.dental_charting)) {
+    lines.push(...formatDentalChartingSummary(exam.dental_charting));
+  }
+
   if (inv.xray_performed) {
     pushDetail(lines, 'Investigation · X-ray', inv.xray_results || 'Performed');
   }
@@ -284,6 +292,16 @@ export function formatStopClinicalDetails(stop) {
   return lines;
 }
 
+function findDentalChartInClinical(clinical) {
+  for (const row of clinical?.consultations || []) {
+    const exam = asObject(row.dental_exam);
+    if (exam?.dental_charting && hasDentalCharting(exam.dental_charting)) {
+      return exam.dental_charting;
+    }
+  }
+  return null;
+}
+
 export function buildConsultationSteps(visit) {
   return (visit.stops || [])
     .filter((stop) => isBookDepartment(stop.department))
@@ -300,6 +318,7 @@ export function buildConsultationSteps(visit) {
         timestamp: stop.arrived_at || stop.started_at,
         startedAt: stop.started_at,
         completedAt: stop.completed_at,
+        dentalChart: findDentalChartInClinical(clinical),
         details: formatStopClinicalDetails({ ...stop, clinical }),
       };
     });

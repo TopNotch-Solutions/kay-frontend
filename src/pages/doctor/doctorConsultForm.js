@@ -79,7 +79,6 @@ export function vitalsToIntakeForm(vitals) {
 
 export const emptyMedLine = () => ({
   medication_name: '',
-  generic_name: '',
   dosage: '',
   frequency: '',
   quantity: '1',
@@ -117,7 +116,6 @@ export function commitMedLineToList({
       {
         ...medLine,
         medication_name: name,
-        generic_name: medLine.generic_name?.trim() || '',
         dosage: dose,
         quantity: qty,
       },

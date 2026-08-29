@@ -4,6 +4,7 @@ import {
   EXTRA_ORAL_FIELDS,
   INTRA_ORAL_FIELDS,
 } from '../doctorDentalExamForm';
+import DoctorDentalChart from './DoctorDentalChart';
 
 export default function DoctorVitalsAndExamForm({
   vitalsForm,
@@ -37,6 +38,13 @@ export default function DoctorVitalsAndExamForm({
         ...(dentalExam.investigations || {}),
         ...patch,
       },
+    });
+  }
+
+  function setDentalCharting(charting) {
+    onDentalExamChange({
+      ...dentalExam,
+      dental_charting: charting,
     });
   }
 
@@ -187,6 +195,22 @@ export default function DoctorVitalsAndExamForm({
               onChange={(e) => setIntraOral(field.key, e.target.value)}
             />
           ))}
+        </div>
+      </section>
+
+      <section className={c.sectionPanel} aria-labelledby="doc-dental-chart-heading">
+        <h3 id="doc-dental-chart-heading" className={c.sectionTitle}>
+          Digital dental chart
+        </h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Kay-One Dental Studio — chart pre-treatment condition and completed treatment. Select a tool,
+          then click teeth to mark fillings, caries, extractions, or root canals.
+        </p>
+        <div className="mt-4">
+          <DoctorDentalChart
+            value={dentalExam.dental_charting}
+            onChange={setDentalCharting}
+          />
         </div>
       </section>
 

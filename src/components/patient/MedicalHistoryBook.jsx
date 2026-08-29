@@ -3,6 +3,7 @@ import { lookup } from '../../pages/front_office/styles/lookupClasses';
 import { patientInitials } from '../../pages/front_office/utils/ehrUtils';
 import { buildBookModel, buildIdentityFields, formatStepTime } from './medicalHistoryBookUtils';
 import MedicalCardDownloadActions from '../medical_card/MedicalCardDownloadActions';
+import DentalChartDisplay from './DentalChartDisplay';
 
 function bookStyles({ compact }) {
   const dense = compact;
@@ -273,6 +274,9 @@ function TimelineStep({ step, isLast, styles }) {
           <p className={styles.stepLabel}>{step.label}</p>
         </div>
         <p className={styles.stepTime}>{formatStepTime(step)}</p>
+        {step.dentalChart ? (
+          <DentalChartDisplay charting={step.dentalChart} compact />
+        ) : null}
         {step.details?.length ? (
           <div className="mt-2 space-y-1">
             {step.details.map((detail, idx) => (

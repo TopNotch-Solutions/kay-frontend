@@ -1,5 +1,4 @@
 import DoctorVitalsAndExamForm from './DoctorVitalsAndExamForm';
-import DoctorIcd10Search from './DoctorIcd10Search';
 import DoctorPrescriptionSection from './DoctorPrescriptionSection';
 import DoctorFollowUpSection from './DoctorFollowUpSection';
 import { IntakeTextarea } from '../../nurse/components/IntakeField';
@@ -12,24 +11,16 @@ export default function DoctorConsultationForm({
   onDentalExamChange,
   complaintError = '',
   allergy,
-  icdInput,
-  onIcdInputChange,
-  onSelectIcd,
-  diagnoses,
-  diagnosisErrors = {},
-  onRemoveDiagnosis,
+  diagnosis,
+  onDiagnosisChange,
   clinicalNotes,
   onClinicalNotesChange,
   followUp,
   onFollowUpChange,
   followUpError = '',
-  catalog,
-  catalogLoading,
-  catalogError = '',
   medLine,
   medFieldErrors,
   onMedFieldChange,
-  onMedicationSelect,
   liveStock,
   stockChecking,
   prescriptionLines,
@@ -63,35 +54,21 @@ export default function DoctorConsultationForm({
         </h3>
         <p className="mt-1 text-sm text-slate-500">Optional</p>
         <div className="mt-4 space-y-4">
-          <DoctorIcd10Search
-            value={icdInput}
-            onChange={onIcdInputChange}
-            onSelect={onSelectIcd}
-            error={diagnosisErrors.icd}
+          <IntakeTextarea
+            id="doc-diagnosis"
+            label="Diagnosis"
+            required={false}
+            showRequiredMark={false}
+            className={c.textarea}
+            placeholder="Enter diagnosis or clinical impression…"
+            value={diagnosis}
+            onChange={(e) => onDiagnosisChange(e.target.value)}
           />
-          {diagnoses.length > 0 ? (
-            <div className={c.tagList}>
-              {diagnoses.map((d) => (
-                <span key={d.code} className={c.tag}>
-                  {d.code} - {d.label}
-                  <button
-                    type="button"
-                    className={c.tagRemove}
-                    aria-label={`Remove ${d.code}`}
-                    onClick={() => onRemoveDiagnosis(d.code)}
-                  >
-                    x
-                  </button>
-                </span>
-              ))}
-            </div>
-          ) : null}
           <IntakeTextarea
             id="doc-clinical-notes"
             label="Clinical notes and treatment plan"
             required={false}
             showRequiredMark={false}
-            error={diagnosisErrors.clinicalNotes}
             className={c.textarea}
             placeholder="Detail the treatment plan, counseling provided, and clinical reasoning…"
             value={clinicalNotes}
@@ -101,13 +78,9 @@ export default function DoctorConsultationForm({
       </section>
 
       <DoctorPrescriptionSection
-        catalog={catalog}
-        catalogLoading={catalogLoading}
-        catalogError={catalogError}
         medLine={medLine}
         medFieldErrors={medFieldErrors}
         onMedFieldChange={onMedFieldChange}
-        onMedicationSelect={onMedicationSelect}
         liveStock={liveStock}
         stockChecking={stockChecking}
         prescriptionLines={prescriptionLines}

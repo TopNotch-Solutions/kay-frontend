@@ -48,11 +48,6 @@ export const admin = {
   metricValue: 'text-2xl font-bold text-white tabular-nums',
   metricLabel: 'mt-1 text-sm font-semibold text-emerald-50',
   metricHint: 'mt-0.5 text-xs text-emerald-100',
-  icd10StatGrid: 'grid gap-3 sm:grid-cols-2 max-w-2xl',
-  icd10StatCard: `${greenCard} p-4`,
-  icd10StatValue: 'text-2xl font-bold tabular-nums text-white sm:text-3xl',
-  icd10StatLabel: 'mt-1 text-sm font-semibold text-white',
-  icd10StatHint: 'mt-0.5 text-xs text-emerald-100',
   btnPrimary:
     'inline-flex min-h-[2.25rem] items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-60 sm:text-sm sm:min-h-[2.5rem]',
   btnSecondary:
@@ -136,6 +131,5 @@ export const ADMIN_SECTIONS = [
   { id: 'admins', label: 'System Administrators', icon: 'admins' },
   { id: 'patient-records', label: 'Patient Records', icon: 'records' },
   { id: 'user-reports', label: 'User Reports', icon: 'reports' },
-  { id: 'icd10', label: 'ICD-10 Catalog', icon: 'icd10' },
   { id: 'settings', label: 'System Settings', icon: 'settings' },
 ];

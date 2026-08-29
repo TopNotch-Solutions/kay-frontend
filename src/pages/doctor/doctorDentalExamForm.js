@@ -1,5 +1,7 @@
 /** Kay One Dental — doctor vitals + extra/intra-oral exam form helpers. */
 
+import { emptyDentalCharting, hasDentalCharting, normalizeDentalCharting } from './dentalChartConfig';
+
 export function emptyDoctorVitalsForm() {
   return {
     chief_complaint: '',
@@ -32,6 +34,7 @@ export function emptyDentalExamForm() {
       blood_test_performed: false,
       blood_test_results: '',
     },
+    dental_charting: emptyDentalCharting(),
   };
 }
 
@@ -79,6 +82,7 @@ export function dentalExamToForm(raw) {
       blood_test_performed: Boolean(investigations.blood_test_performed),
       blood_test_results: str(investigations.blood_test_results),
     },
+    dental_charting: normalizeDentalCharting(raw.dental_charting),
   };
 }
 
@@ -158,6 +162,9 @@ export function buildDentalExamPayload(form, followUpForm) {
       blood_test_performed: bloodTestPerformed,
       blood_test_results: bloodTestPerformed ? limit(investigations.blood_test_results) : null,
     },
+    ...(hasDentalCharting(form.dental_charting)
+      ? { dental_charting: normalizeDentalCharting(form.dental_charting) }
+      : {}),
     ...(follow_up ? { follow_up } : {}),
   };
 }

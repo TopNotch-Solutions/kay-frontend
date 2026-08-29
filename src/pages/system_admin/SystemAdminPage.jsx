@@ -11,14 +11,6 @@ import {
   getAdminUsers,
   updateAdminUser,
 } from '../../api/admin';
-import {
-  createIcd10Code,
-  getIcd10AuditLogs,
-  listAdminIcd10Codes,
-  updateIcd10Status,
-  uploadIcd10Xlsx,
-} from '../../api/icd10';
-import AddIcd10Modal from './components/AddIcd10Modal';
 import AdminSidebar from './components/AdminSidebar';
 import AdminTopbar from './components/AdminTopbar';
 import RegisterEmployeeModal from './components/RegisterEmployeeModal';
@@ -28,7 +20,6 @@ import { admin as c } from './styles/adminClasses';
 import AdminDashboardView from './views/AdminDashboardView';
 import EmployeeManagementView from './views/EmployeeManagementView';
 import SystemAdminManagementView from './views/SystemAdminManagementView';
-import Icd10ManagementView from './views/Icd10ManagementView';
 import PatientRecordsView from './views/PatientRecordsView';
 import UserReportsAdminView from './views/UserReportsAdminView';
 import SystemSettingsView from './views/SystemSettingsView';
@@ -74,19 +65,6 @@ export default function SystemAdminPage() {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
-
-  const [icd10Rows, setIcd10Rows] = useState([]);
-  const [icd10Total, setIcd10Total] = useState(0);
-  const [icd10TotalActive, setIcd10TotalActive] = useState(0);
-  const [icd10TotalInactive, setIcd10TotalInactive] = useState(0);
-  const [icd10Loading, setIcd10Loading] = useState(false);
-  const [icd10Search, setIcd10Search] = useState('');
-  const [icd10StatusFilter, setIcd10StatusFilter] = useState('');
-  const [icd10ModalOpen, setIcd10ModalOpen] = useState(false);
-  const [icd10Uploading, setIcd10Uploading] = useState(false);
-  const [icd10TogglingId, setIcd10TogglingId] = useState(null);
-  const [icd10AuditLogs, setIcd10AuditLogs] = useState([]);
-  const [icd10AuditLoading, setIcd10AuditLoading] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     setDashboardLoading(true);
@@ -163,37 +141,6 @@ export default function SystemAdminPage() {
     }
   }, []);
 
-  const loadIcd10 = useCallback(async () => {
-    setIcd10Loading(true);
-    try {
-      const data = await listAdminIcd10Codes({
-        search: icd10Search.trim() || undefined,
-        status: icd10StatusFilter || undefined,
-        limit: 100,
-      });
-      setIcd10Rows(data?.rows || []);
-      setIcd10Total(data?.total ?? 0);
-      setIcd10TotalActive(data?.total_active ?? 0);
-      setIcd10TotalInactive(data?.total_inactive ?? 0);
-    } catch (err) {
-      setError(err.message || 'Failed to load ICD-10 catalog');
-    } finally {
-      setIcd10Loading(false);
-    }
-  }, [icd10Search, icd10StatusFilter]);
-
-  const loadIcd10Audit = useCallback(async () => {
-    setIcd10AuditLoading(true);
-    try {
-      const { rows } = await getIcd10AuditLogs({ limit: 50 });
-      setIcd10AuditLogs(rows || []);
-    } catch (err) {
-      setError(err.message || 'Failed to load ICD-10 audit logs');
-    } finally {
-      setIcd10AuditLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     loadCore();
   }, [loadCore]);
@@ -213,19 +160,6 @@ export default function SystemAdminPage() {
   useEffect(() => {
     if (section === 'settings') loadAudit();
   }, [section, loadAudit]);
-
-  useEffect(() => {
-    if (section === 'icd10') {
-      loadIcd10();
-      loadIcd10Audit();
-    }
-  }, [section, loadIcd10, loadIcd10Audit]);
-
-  useEffect(() => {
-    if (section !== 'icd10') return undefined;
-    const t = setTimeout(() => loadIcd10(), 300);
-    return () => clearTimeout(t);
-  }, [icd10Search, section, loadIcd10]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -336,62 +270,6 @@ export default function SystemAdminPage() {
     }
   };
 
-  const handleCreateIcd10 = async (form) => {
-    setSubmitting(true);
-    try {
-      await createIcd10Code({ code: form.code.trim(), description: form.description.trim() });
-      setIcd10ModalOpen(false);
-      setToast(`ICD-10 code ${form.code.trim().toUpperCase()} added.`);
-      await Promise.all([loadIcd10(), loadIcd10Audit()]);
-    } catch (err) {
-      setToast(err.message || 'Could not add ICD-10 code');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleToggleIcd10 = async (row, activate) => {
-    const confirmed = await confirmAction({
-      title: activate ? 'Activate ICD-10 code?' : 'Inactivate ICD-10 code?',
-      text: activate
-        ? `Activate ${row.code} for clinical use?`
-        : `Inactivate ${row.code}? Doctors will no longer see it in diagnosis lookup.`,
-      icon: 'question',
-      confirmButtonText: activate ? 'Activate' : 'Inactivate',
-    });
-    if (!confirmed) return;
-    setIcd10TogglingId(row.id);
-    try {
-      await updateIcd10Status(row.id, { is_active: activate });
-      setToast(activate ? 'ICD-10 code activated.' : 'ICD-10 code inactivated.');
-      await Promise.all([loadIcd10(), loadIcd10Audit()]);
-    } catch (err) {
-      setToast(err.message || 'ICD-10 status update failed');
-    } finally {
-      setIcd10TogglingId(null);
-    }
-  };
-
-  const handleUploadIcd10 = async (file) => {
-    setIcd10Uploading(true);
-    try {
-      const result = await uploadIcd10Xlsx(file);
-      const parts = [
-        `${result.created || 0} added`,
-        `${result.updated || 0} updated`,
-      ];
-      if (result.errors?.length) {
-        parts.push(`${result.errors.length} row issue(s)`);
-      }
-      setToast(`Import complete: ${parts.join(', ')}.`);
-      await Promise.all([loadIcd10(), loadIcd10Audit()]);
-    } catch (err) {
-      setToast(err.message || 'ICD-10 upload failed');
-    } finally {
-      setIcd10Uploading(false);
-    }
-  };
-
   let content = null;
   if (section === 'dashboard') {
     content = (
@@ -439,28 +317,6 @@ export default function SystemAdminPage() {
     content = <PatientRecordsView />;
   } else if (section === 'user-reports') {
     content = <UserReportsAdminView onToast={setToast} currentUserId={user?.id} />;
-  } else if (section === 'icd10') {
-    content = (
-      <Icd10ManagementView
-        rows={icd10Rows}
-        total={icd10Total}
-        totalActive={icd10TotalActive}
-        totalInactive={icd10TotalInactive}
-        loading={icd10Loading}
-        search={icd10Search}
-        onSearchChange={setIcd10Search}
-        statusFilter={icd10StatusFilter}
-        onStatusFilterChange={setIcd10StatusFilter}
-        onAddClick={() => setIcd10ModalOpen(true)}
-        onToggleActive={handleToggleIcd10}
-        onUpload={handleUploadIcd10}
-        uploading={icd10Uploading}
-        togglingId={icd10TogglingId}
-        auditLogs={icd10AuditLogs}
-        auditLoading={icd10AuditLoading}
-        onRefreshAudit={loadIcd10Audit}
-      />
-    );
   } else if (section === 'settings') {
     content = (
       <SystemSettingsView
@@ -519,12 +375,6 @@ export default function SystemAdminPage() {
         open={adminModalOpen}
         onClose={() => setAdminModalOpen(false)}
         onSubmit={handleRegisterSystemAdmin}
-        submitting={submitting}
-      />
-      <AddIcd10Modal
-        open={icd10ModalOpen}
-        onClose={() => setIcd10ModalOpen(false)}
-        onSubmit={handleCreateIcd10}
         submitting={submitting}
       />
 
