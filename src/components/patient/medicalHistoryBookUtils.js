@@ -257,7 +257,9 @@ function dentalExamDetailLines(raw) {
         ? 'Cancelled'
         : entry.action === 'rescheduled'
           ? 'Rescheduled'
-          : formatLabel(entry.action || 'Updated');
+          : entry.action === 'attended'
+            ? 'Attended'
+            : formatLabel(entry.action || 'Updated');
       const when = entry.at ? formatDateTime(entry.at) : '—';
       const roleLabel = entry.by_role === 'front_office'
         ? 'Front office'
