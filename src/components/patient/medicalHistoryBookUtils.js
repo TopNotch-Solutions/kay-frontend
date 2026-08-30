@@ -248,6 +248,49 @@ function dentalExamDetailLines(raw) {
     const when = [followUp.date, followUp.time].filter(Boolean).join(' ');
     if (when) pushDetail(lines, 'Follow-up', when);
     pushDetail(lines, 'Follow-up notes', followUp.notes);
+    pushDetail(lines, 'Follow-up status', followUp.status);
+  }
+
+  if (Array.isArray(followUp.history) && followUp.history.length > 0) {
+    followUp.history.forEach((entry, index) => {
+      const actionLabel = entry.action === 'cancelled'
+        ? 'Cancelled'
+        : entry.action === 'rescheduled'
+          ? 'Rescheduled'
+          : formatLabel(entry.action || 'Updated');
+      const when = entry.at ? formatDateTime(entry.at) : '—';
+      const roleLabel = entry.by_role === 'front_office'
+        ? 'Front office'
+        : entry.by_role === 'doctor'
+          ? 'Doctor'
+          : null;
+      const by = entry.by_name || 'Unknown';
+      const byLine = roleLabel ? `${by} (${roleLabel})` : by;
+      const detailParts = [`${actionLabel} by ${byLine}`, when];
+      if (entry.reason) detailParts.push(`Reason: ${entry.reason}`);
+      if (entry.from_date) {
+        detailParts.push(`From ${[entry.from_date, entry.from_time].filter(Boolean).join(' ')}`);
+      }
+      if (entry.to_date) {
+        detailParts.push(`To ${[entry.to_date, entry.to_time].filter(Boolean).join(' ')}`);
+      }
+      pushDetail(lines, `Appointment history ${index + 1}`, detailParts.join(' · '));
+    });
+  } else if (followUp.status === 'cancelled') {
+    pushDetail(lines, 'Cancelled by', followUp.cancelled_by_name);
+    pushDetail(lines, 'Cancelled at', followUp.cancelled_at ? formatDateTime(followUp.cancelled_at) : null);
+    pushDetail(lines, 'Cancellation reason', followUp.cancellation_reason);
+  } else if (followUp.rescheduled_by_name || followUp.rescheduled_at) {
+    pushDetail(lines, 'Last rescheduled by', followUp.rescheduled_by_name);
+    pushDetail(lines, 'Rescheduled at', followUp.rescheduled_at ? formatDateTime(followUp.rescheduled_at) : null);
+    pushDetail(lines, 'Reschedule reason', followUp.reschedule_reason);
+    if (followUp.previous_date) {
+      pushDetail(
+        lines,
+        'Previous appointment',
+        [followUp.previous_date, followUp.previous_time].filter(Boolean).join(' ')
+      );
+    }
   }
   return lines;
 }

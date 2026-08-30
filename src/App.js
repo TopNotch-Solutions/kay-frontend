@@ -10,6 +10,7 @@ import PatientRegistrationStep3Page from './pages/front_office/PatientRegistrati
 import PatientRegistrationStep4Page from './pages/front_office/PatientRegistrationStep4Page';
 import PatientEhrPage from './pages/front_office/PatientEhrPage';
 import TodaysRegistrationsPage from './pages/front_office/TodaysRegistrationsPage';
+import FrontOfficeAppointmentsPage from './pages/front_office/FrontOfficeAppointmentsPage';
 import DoctorPage from './pages/doctor';
 import SystemAdminPage from './pages/system_admin';
 import ReportingPage from './pages/reporting/ReportingPage';
@@ -34,6 +35,7 @@ function App() {
         >
           <Route index element={<FrontOfficeDashboardPage />} />
           <Route path="today" element={<TodaysRegistrationsPage />} />
+          <Route path="appointments" element={<FrontOfficeAppointmentsPage />} />
           <Route path="registration/step-1" element={<PatientRegistrationStep1Page />} />
           <Route path="registration/step-2" element={<PatientRegistrationStep2Page />} />
           <Route path="registration/step-3" element={<PatientRegistrationStep3Page />} />

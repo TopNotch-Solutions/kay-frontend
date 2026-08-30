@@ -29,12 +29,16 @@ export const nurse = {
   queueCardActive: 'border-teal-500 bg-gradient-to-br from-teal-50/90 to-white ring-1 ring-teal-500/30 shadow-sm',
   queueCardLocked: 'opacity-65 hover:border-slate-200/90 hover:shadow-sm',
   queueCardEmergency: 'border-rose-300/90 bg-gradient-to-br from-rose-50/70 to-white hover:border-rose-400',
+  queueCardNew: 'border-emerald-300/90 bg-gradient-to-br from-emerald-50/85 to-white hover:border-emerald-400',
+  queueCardFollowUp: 'border-sky-300/90 bg-gradient-to-br from-sky-50/85 to-white hover:border-sky-400',
   queueCardCompleted: 'opacity-70 hover:border-slate-200/90 hover:shadow-sm',
   queueCardInner: 'flex gap-2 p-2',
   queueCardAvatar:
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-200/80 text-[0.65rem] font-bold text-slate-700 shadow-inner',
   queueCardAvatarActive: 'from-teal-500 to-teal-700 text-white shadow-teal-900/20',
   queueCardAvatarEmergency: 'from-rose-400 to-rose-600 text-white',
+  queueCardAvatarNew: 'from-emerald-500 to-emerald-700 text-white shadow-emerald-900/20',
+  queueCardAvatarFollowUp: 'from-sky-500 to-sky-700 text-white shadow-sky-900/20',
   queueCardBody: 'min-w-0 flex-1',
   queueCardBadgeRow: 'mb-0.5 flex flex-wrap items-center gap-0.5',
   queueCardSubtitle: 'mt-0.5 text-[0.65rem] leading-snug text-slate-600 line-clamp-2',
@@ -43,6 +47,10 @@ export const nurse = {
   queueCardChevron: 'text-teal-600 opacity-70 transition group-hover:opacity-100 group-focus-visible:opacity-100',
   badgeEmergency:
     'inline-flex rounded px-1 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-rose-900 bg-rose-100',
+  badgeNew:
+    'inline-flex rounded px-1 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-emerald-900 bg-emerald-100',
+  badgeFollowUp:
+    'inline-flex rounded px-1 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-sky-900 bg-sky-100',
   queueName: 'text-xs font-bold leading-tight text-slate-900',
   queueMeta: 'text-[0.65rem] leading-snug text-slate-500',
   queueId: 'text-[0.6rem] font-semibold leading-tight text-slate-600',
@@ -55,8 +63,12 @@ export const nurse = {
   idleTitle: 'mt-4 text-lg font-bold text-slate-900',
   idleText: 'mt-2 max-w-md text-sm leading-relaxed text-slate-500',
   banner:
-    'grid gap-4 rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-600 to-teal-700 p-5 text-white shadow-lg shadow-teal-900/15 sm:grid-cols-3',
-  bannerLabel: 'text-xs font-semibold uppercase tracking-wide text-teal-100',
+    'grid gap-4 rounded-2xl border p-5 text-white shadow-lg sm:grid-cols-3',
+  bannerNew:
+    'border-emerald-200 bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-emerald-900/15',
+  bannerFollowUp:
+    'border-sky-200 bg-gradient-to-br from-sky-600 to-sky-700 shadow-sky-900/15',
+  bannerLabel: 'text-xs font-semibold uppercase tracking-wide text-white/80',
   bannerValue: 'mt-0.5 block text-base font-bold',
   formScroll: 'flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-4',
   readOnlyInput: 'cursor-default bg-slate-50 text-slate-700',

@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
-import { cancelDoctorAppointment, getDoctorAppointments } from '../../../api/doctor';
+import { cancelDoctorAppointment, cancelDoctorAppointmentsByDate, getDoctorAppointments } from '../../../api/doctor';
 import { patientName, patientInitials } from '../../front_office/patientUtils';
 import { nurse as c } from '../../nurse/styles/nurseClasses';
 import {
   isFollowUpDateInFuture,
   minFollowUpDateInClinicTz,
+  todayInClinicTz,
 } from '../../../utils/clinicDate';
+import DoctorAppointmentsCalendar from './DoctorAppointmentsCalendar';
+
+const DEFAULT_APPOINTMENTS_API = {
+  getAppointments: () => getDoctorAppointments(),
+  cancelAppointment: cancelDoctorAppointment,
+  cancelAppointmentsByDate: cancelDoctorAppointmentsByDate,
+};
 
 function formatAppointmentTime(time) {
   if (!time) return null;
@@ -202,10 +210,183 @@ async function promptCancelOrReschedule(patientLabel, currentFollowUp) {
   return result.value;
 }
 
-function AppointmentCard({ row, busy, onCancel }) {
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function defaultRescheduleDate(currentDate) {
+  if (currentDate && isFollowUpDateInFuture(currentDate)) return currentDate;
+  return minFollowUpDateInClinicTz();
+}
+
+function defaultRescheduleTime(currentTime) {
+  const formatted = formatAppointmentTime(currentTime);
+  return formatted || '09:00';
+}
+
+function buildBulkRescheduleRowsHtml(rows, minDate) {
+  return rows
+    .map((row) => {
+      const id = escapeHtml(row.consultation_id);
+      const name = escapeHtml(patientName(row.patient) || 'Patient');
+      const patientNumber = escapeHtml(row.patient?.patient_number || '—');
+      const defaultDate = defaultRescheduleDate(row.follow_up?.date);
+      const defaultTime = defaultRescheduleTime(row.follow_up?.time);
+      return `
+        <div class="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+          <p class="text-sm font-semibold text-slate-900">${name}</p>
+          <p class="text-xs text-slate-500">${patientNumber}</p>
+          <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div>
+              <label for="swal-bulk-date-${id}" class="mb-1 block text-xs font-semibold text-slate-600">
+                New date
+              </label>
+              <input
+                type="date"
+                id="swal-bulk-date-${id}"
+                data-consultation-id="${id}"
+                min="${minDate}"
+                value="${defaultDate}"
+                class="swal2-input swal-bulk-patient-date !mx-0 !w-full text-sm"
+              />
+            </div>
+            <div>
+              <label for="swal-bulk-time-${id}" class="mb-1 block text-xs font-semibold text-slate-600">
+                New time
+              </label>
+              <input
+                type="time"
+                id="swal-bulk-time-${id}"
+                data-consultation-id="${id}"
+                value="${defaultTime}"
+                class="swal2-input swal-bulk-patient-time !mx-0 !w-full text-sm"
+              />
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+async function promptBulkCancel(dayLabel, rows) {
+  const count = rows.length;
+  const minDate = minFollowUpDateInClinicTz();
+  const rescheduleRowsHtml = buildBulkRescheduleRowsHtml(rows, minDate);
+
+  const result = await Swal.fire({
+    title: `Cancel ${count} appointment${count === 1 ? '' : 's'}?`,
+    width: '40rem',
+    html: `
+      <p class="mb-3 text-sm text-slate-600 text-left">
+        This will cancel <strong>${count}</strong> follow-up appointment${count === 1 ? '' : 's'} scheduled for
+        <strong>${escapeHtml(dayLabel)}</strong>. Each patient will receive an SMS with your reason.
+      </p>
+      <label for="swal-bulk-cancel-reason" class="mb-1 block text-left text-sm font-semibold text-slate-700">
+        Reason
+      </label>
+      <textarea
+        id="swal-bulk-cancel-reason"
+        class="swal2-textarea !mx-0 !w-full text-sm"
+        rows="3"
+        maxlength="500"
+        placeholder="Explain why these appointments are cancelled or moved…"
+      ></textarea>
+      <label class="mt-4 flex items-center gap-2 text-left text-sm font-semibold text-slate-800">
+        <input type="checkbox" id="swal-bulk-reschedule-check" class="h-4 w-4 rounded border-slate-300 text-teal-600" />
+        Reschedule each patient individually
+      </label>
+      <div id="swal-bulk-reschedule-fields" class="mt-3 hidden max-h-72 space-y-2 overflow-y-auto text-left">
+        <p class="text-xs text-slate-500">Set a new follow-up date and time for each patient below.</p>
+        ${rescheduleRowsHtml}
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: `Cancel ${count} appointment${count === 1 ? '' : 's'}`,
+    cancelButtonText: 'Keep appointments',
+    confirmButtonColor: '#b91c1c',
+    cancelButtonColor: '#64748b',
+    reverseButtons: true,
+    focusCancel: true,
+    didOpen: () => {
+      const check = document.getElementById('swal-bulk-reschedule-check');
+      const fields = document.getElementById('swal-bulk-reschedule-fields');
+      const confirmBtn = Swal.getConfirmButton();
+      const toggle = () => {
+        fields.classList.toggle('hidden', !check.checked);
+        if (confirmBtn) {
+          const label = count === 1 ? 'appointment' : 'appointments';
+          confirmBtn.textContent = check.checked
+            ? `Reschedule ${count} ${label}`
+            : `Cancel ${count} ${label}`;
+          confirmBtn.style.backgroundColor = check.checked ? '#0d9488' : '#b91c1c';
+        }
+      };
+      check.addEventListener('change', toggle);
+      toggle();
+    },
+    preConfirm: () => {
+      const reason = document.getElementById('swal-bulk-cancel-reason')?.value?.trim() || '';
+      if (!reason) {
+        Swal.showValidationMessage('A reason is required.');
+        return false;
+      }
+      const reschedule = document.getElementById('swal-bulk-reschedule-check')?.checked;
+      if (!reschedule) {
+        return { reason, reschedule: false };
+      }
+
+      const reschedules = [];
+      for (const row of rows) {
+        const consultationId = row.consultation_id;
+        const dateInput = document.getElementById(`swal-bulk-date-${consultationId}`);
+        const timeInput = document.getElementById(`swal-bulk-time-${consultationId}`);
+        const followUpDate = dateInput?.value?.trim() || '';
+        const followUpTime = timeInput?.value?.trim() || '';
+        const label = patientName(row.patient) || 'Patient';
+
+        if (!followUpDate) {
+          Swal.showValidationMessage(`Choose a new date for ${label}.`);
+          return false;
+        }
+        if (!followUpTime) {
+          Swal.showValidationMessage(`Choose a new time for ${label}.`);
+          return false;
+        }
+        if (!isFollowUpDateInFuture(followUpDate)) {
+          Swal.showValidationMessage(`Follow-up date for ${label} must be a future date (tomorrow or later).`);
+          return false;
+        }
+
+        reschedules.push({
+          consultation_id: consultationId,
+          follow_up_date: followUpDate,
+          follow_up_time: followUpTime,
+        });
+      }
+
+      return {
+        reason,
+        reschedule: true,
+        reschedules,
+      };
+    },
+  });
+
+  if (!result.isConfirmed) return null;
+  return result.value;
+}
+
+function AppointmentCard({ row, busy, onCancel, showDoctorColumn = false }) {
   const name = patientName(row.patient);
   const timeLabel = formatAppointmentTime(row.follow_up?.time);
   const notes = row.follow_up?.notes || row.diagnosis;
+  const doctorLabel = row.doctor?.name
+    || [row.doctor?.first_name, row.doctor?.last_name].filter(Boolean).join(' ').trim();
 
   return (
     <article
@@ -230,6 +411,11 @@ function AppointmentCard({ row, busy, onCancel }) {
               <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-600">
                 <PhoneIcon />
                 {row.patient.phone}
+              </p>
+            ) : null}
+            {showDoctorColumn && doctorLabel ? (
+              <p className="mt-1.5 text-xs font-medium text-slate-600">
+                Doctor: <span className="font-semibold text-slate-800">{doctorLabel}</span>
               </p>
             ) : null}
           </div>
@@ -269,7 +455,15 @@ function AppointmentCard({ row, busy, onCancel }) {
   );
 }
 
-export default function DoctorAppointmentsView({ onToast }) {
+export default function DoctorAppointmentsView({
+  onToast,
+  api = DEFAULT_APPOINTMENTS_API,
+  showDoctorColumn = false,
+  supportsDoctorFilter = false,
+  scheduleKicker = 'Schedule',
+  scheduleTitle = 'Follow-up appointments',
+  scheduleDescription = 'Upcoming return visits you scheduled. Cancelling sends the patient an SMS with your reason.',
+}) {
   const [appointments, setAppointments] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -277,12 +471,47 @@ export default function DoctorAppointmentsView({ onToast }) {
   const [actionId, setActionId] = useState(null);
   const [search, setSearch] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [selectedDate, setSelectedDate] = useState('');
+  const [bulkCancellingDate, setBulkCancellingDate] = useState('');
+  const [doctorFilter, setDoctorFilter] = useState('');
+
+  const clinicToday = todayInClinicTz();
+
+  const countsByDate = useMemo(() => {
+    const map = new Map();
+    for (const row of appointments) {
+      const key = row.follow_up?.date;
+      if (!key) continue;
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+    return map;
+  }, [appointments]);
+
+  const todayCount = countsByDate.get(clinicToday) || 0;
+  const selectedDateCount = selectedDate ? (countsByDate.get(selectedDate) || 0) : 0;
+
+  const doctorOptions = useMemo(() => {
+    if (!supportsDoctorFilter) return [];
+    const map = new Map();
+    for (const row of appointments) {
+      if (!row.doctor?.id) continue;
+      const label = row.doctor.name
+        || [row.doctor.first_name, row.doctor.last_name].filter(Boolean).join(' ').trim()
+        || 'Doctor';
+      map.set(row.doctor.id, label);
+    }
+    return [...map.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [appointments, supportsDoctorFilter]);
 
   const loadAppointments = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await getDoctorAppointments();
+      const data = await api.getAppointments(
+        supportsDoctorFilter && doctorFilter ? { doctorId: doctorFilter } : undefined
+      );
       setAppointments(data.appointments || []);
       setCount(data.count ?? (data.appointments || []).length);
     } catch (err) {
@@ -292,22 +521,26 @@ export default function DoctorAppointmentsView({ onToast }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [api, supportsDoctorFilter, doctorFilter]);
 
   useEffect(() => {
     loadAppointments();
   }, [loadAppointments]);
 
   const filtered = useMemo(() => {
+    let rows = appointments;
+    if (selectedDate) {
+      rows = rows.filter((row) => row.follow_up?.date === selectedDate);
+    }
     const q = search.trim().toLowerCase();
-    if (!q) return appointments;
-    return appointments.filter((row) => {
+    if (!q) return rows;
+    return rows.filter((row) => {
       const name = patientName(row.patient).toLowerCase();
       const num = (row.patient?.patient_number || '').toLowerCase();
       const phone = (row.patient?.phone || '').toLowerCase();
       return name.includes(q) || num.includes(q) || phone.includes(q);
     });
-  }, [appointments, search]);
+  }, [appointments, search, selectedDate]);
 
   const sortedFiltered = useMemo(
     () => sortAppointments(filtered, sortOrder),
@@ -336,7 +569,7 @@ export default function DoctorAppointmentsView({ onToast }) {
 
     setActionId(row.consultation_id);
     try {
-      const result = await cancelDoctorAppointment(row.consultation_id, payload);
+      const result = await api.cancelAppointment(row.consultation_id, payload);
       if (payload.reschedule) {
         onToast?.(
           result?.sms_sent
@@ -363,9 +596,61 @@ export default function DoctorAppointmentsView({ onToast }) {
     }
   }
 
+  async function handleCancelDay(dateKey) {
+    const rows = appointments.filter((row) => row.follow_up?.date === dateKey);
+    const count = rows.length;
+    if (!count) return;
+
+    const dayLabel = formatDateHeading(dateKey);
+    const payload = await promptBulkCancel(dayLabel, rows);
+    if (!payload) return;
+
+    setBulkCancellingDate(dateKey);
+    try {
+      const result = await api.cancelAppointmentsByDate({
+        date: dateKey,
+        reason: payload.reason,
+        reschedule: payload.reschedule,
+        reschedules: payload.reschedules,
+        ...(supportsDoctorFilter && doctorFilter ? { doctor_id: doctorFilter } : {}),
+      });
+      const processed = result?.processed_count ?? count;
+      const smsSent = result?.sms_sent_count ?? 0;
+      const failures = result?.failures?.length ?? 0;
+      const isReschedule = Boolean(payload.reschedule);
+      const action = isReschedule ? 'Rescheduled' : 'Cancelled';
+
+      if (failures > 0) {
+        onToast?.(`${action} ${processed} appointment${processed === 1 ? '' : 's'}. ${failures} could not be updated.`);
+      } else if (smsSent === processed) {
+        onToast?.(`${action} ${processed} appointment${processed === 1 ? '' : 's'} — SMS sent to each patient.`);
+      } else if (smsSent > 0) {
+        onToast?.(`${action} ${processed} appointment${processed === 1 ? '' : 's'}. SMS sent to ${smsSent} patient${smsSent === 1 ? '' : 's'}.`);
+      } else {
+        onToast?.(`${action} ${processed} appointment${processed === 1 ? '' : 's'}. No cell phones on file for SMS.`);
+      }
+
+      if (selectedDate === dateKey && !isReschedule) {
+        setSelectedDate('');
+      }
+      await loadAppointments();
+    } catch (err) {
+      await Swal.fire({
+        title: payload.reschedule ? 'Could not reschedule appointments' : 'Could not cancel appointments',
+        text: err.message || 'Request failed.',
+        icon: 'error',
+        confirmButtonColor: '#0d9488',
+      });
+    } finally {
+      setBulkCancellingDate('');
+    }
+  }
+
+  const bulkBusy = Boolean(bulkCancellingDate);
+
   return (
     <div className={`${c.main} overflow-y-auto`}>
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 pb-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 pb-8">
         <header
           className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-teal-900 to-teal-700 text-white shadow-lg shadow-teal-900/15"
         >
@@ -374,14 +659,13 @@ export default function DoctorAppointmentsView({ onToast }) {
             <div className="relative flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-teal-200/90">
-                  Schedule
+                  {scheduleKicker}
                 </p>
                 <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-                  Follow-up appointments
+                  {scheduleTitle}
                 </h2>
                 <p className="mt-2 max-w-lg text-sm leading-relaxed text-teal-100/90">
-                  Upcoming return visits you scheduled. Cancelling sends the patient an SMS with
-                  your reason.
+                  {scheduleDescription}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -396,11 +680,25 @@ export default function DoctorAppointmentsView({ onToast }) {
                 >
                   {loading ? 'Refreshing…' : 'Refresh'}
                 </button>
+                {todayCount > 0 ? (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-red-300/40 bg-red-500/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-red-500/30 disabled:opacity-60"
+                    disabled={loading || bulkBusy}
+                    onClick={() => handleCancelDay(clinicToday)}
+                  >
+                    {bulkCancellingDate === clinicToday
+                      ? 'Updating…'
+                      : `Cancel / reschedule all today (${todayCount})`}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>
         </header>
 
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="min-w-0 flex-1 space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <label className="block min-w-0 flex-1">
             <span className="sr-only">Search appointments</span>
@@ -414,6 +712,24 @@ export default function DoctorAppointmentsView({ onToast }) {
             />
           </label>
           <div className="flex flex-wrap items-center gap-3">
+            {supportsDoctorFilter ? (
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <span className="font-medium text-slate-700">Doctor</span>
+                <select
+                  className={`${c.select} min-w-[11rem] py-2 text-sm`}
+                  value={doctorFilter}
+                  onChange={(e) => setDoctorFilter(e.target.value)}
+                  aria-label="Filter appointments by doctor"
+                >
+                  <option value="">All doctors</option>
+                  {doctorOptions.map((doctor) => (
+                    <option key={doctor.id} value={doctor.id}>
+                      {doctor.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <span className="font-medium text-slate-700">Sort by date</span>
               <select
@@ -426,9 +742,18 @@ export default function DoctorAppointmentsView({ onToast }) {
                 <option value="desc">Latest first</option>
               </select>
             </label>
-            {search.trim() ? (
+            {search.trim() || selectedDate ? (
               <p className="text-sm text-slate-500 tabular-nums">
                 {filtered.length} of {count} shown
+                {selectedDate ? (
+                  <button
+                    type="button"
+                    className="ml-2 font-medium text-teal-700 underline decoration-teal-300 underline-offset-2 hover:text-teal-800"
+                    onClick={() => setSelectedDate('')}
+                  >
+                    Clear date
+                  </button>
+                ) : null}
               </p>
             ) : null}
           </div>
@@ -465,7 +790,7 @@ export default function DoctorAppointmentsView({ onToast }) {
           <div className="space-y-8">
             {grouped.map(([dateKey, rows]) => (
               <section key={dateKey} aria-labelledby={`appt-date-${dateKey}`}>
-                <div className="mb-3 flex items-center gap-2">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-teal-500" />
                   <h3
                     id={`appt-date-${dateKey}`}
@@ -476,6 +801,18 @@ export default function DoctorAppointmentsView({ onToast }) {
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-bold tabular-nums text-slate-600">
                     {rows.length}
                   </span>
+                  {dateKey !== 'unknown' ? (
+                    <button
+                      type="button"
+                      className="ml-auto inline-flex items-center rounded-lg border border-red-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:border-red-300 hover:bg-red-50 disabled:opacity-60"
+                      disabled={bulkBusy || actionId !== null}
+                      onClick={() => handleCancelDay(dateKey)}
+                    >
+                      {bulkCancellingDate === dateKey
+                        ? 'Updating…'
+                        : `Cancel / reschedule all (${rows.length})`}
+                    </button>
+                  ) : null}
                 </div>
                 <ul className="space-y-3">
                   {rows.map((row) => (
@@ -484,6 +821,7 @@ export default function DoctorAppointmentsView({ onToast }) {
                         row={row}
                         busy={actionId === row.consultation_id}
                         onCancel={handleCancel}
+                        showDoctorColumn={showDoctorColumn}
                       />
                     </li>
                   ))}
@@ -492,6 +830,28 @@ export default function DoctorAppointmentsView({ onToast }) {
             ))}
           </div>
         )}
+          </div>
+
+          <aside className="w-full shrink-0 space-y-3 lg:sticky lg:top-6 lg:w-80">
+            <DoctorAppointmentsCalendar
+              appointments={appointments}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+            />
+            {selectedDate && selectedDateCount > 0 ? (
+              <button
+                type="button"
+                className="w-full rounded-xl border border-red-200/90 bg-white px-4 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:border-red-300 hover:bg-red-50 disabled:opacity-60"
+                disabled={bulkBusy || loading}
+                onClick={() => handleCancelDay(selectedDate)}
+              >
+                {bulkCancellingDate === selectedDate
+                  ? 'Updating appointments…'
+                  : `Cancel / reschedule all on ${formatDateHeading(selectedDate)} (${selectedDateCount})`}
+              </button>
+            ) : null}
+          </aside>
+        </div>
       </div>
     </div>
   );

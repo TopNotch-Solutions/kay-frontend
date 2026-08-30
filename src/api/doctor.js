@@ -25,6 +25,13 @@ export function cancelDoctorAppointment(consultationId, body) {
   });
 }
 
+export function cancelDoctorAppointmentsByDate(body) {
+  return apiRequest(`${BASE}/appointments/cancel-by-date`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 export function updateConsultation(id, body) {
   return apiRequest(`${BASE}/${id}`, {
     method: 'PUT',

@@ -24,11 +24,14 @@ export default function ReturningPatientCard({
   const checkInBlocked = hasActiveVisit;
   const doctorLabel = routingLabel(DOCTOR_DESTINATION);
   const visitNumber = patient.active_visit?.visit_number;
+  const hasScheduledFollowUp = Boolean(patient.has_scheduled_follow_up);
 
   let activeVisitVariant = 'warning';
   let activeVisitTitle = 'Active visit in progress';
   let activeVisitMessage = null;
-  let routeButtonLabel = `Route to ${doctorLabel}`;
+  let routeButtonLabel = hasScheduledFollowUp
+    ? `Route follow up to ${doctorLabel}`
+    : `Route new to ${doctorLabel}`;
 
   if (inDoctorQueue) {
     activeVisitVariant = 'info';
@@ -99,8 +102,18 @@ export default function ReturningPatientCard({
         </>
       )}
     >
+      {hasScheduledFollowUp ? (
+        <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+          <p className="font-semibold">Scheduled follow-up</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-sky-800">
+            This patient has an upcoming follow-up appointment. Check-in will route them to the{' '}
+            <strong>{doctorLabel}</strong> queue as a <strong>follow-up visit</strong>.
+          </p>
+        </div>
+      ) : null}
       <p className="text-sm text-slate-600">
-        Returning patients are routed to the <strong>{doctorLabel}</strong> queue.
+        Returning patients are routed to the <strong>{doctorLabel}</strong> queue
+        {hasScheduledFollowUp ? ' as a follow-up' : ' as a new visit'}.
       </p>
     </ReturningPatientCardShell>
   );

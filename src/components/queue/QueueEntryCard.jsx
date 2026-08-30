@@ -33,6 +33,7 @@ export default function QueueEntryCard({
   locked = false,
   emergency = false,
   completed = false,
+  visitType = 'new',
   disabled = false,
   onClick,
   openLabel = 'Click to open',
@@ -41,6 +42,8 @@ export default function QueueEntryCard({
   completedLabel = 'Completed',
 }) {
   const isDisabled = disabled || locked || completed;
+  const isFollowUp = visitType === 'follow_up' && !emergency && !completed;
+  const isNewVisit = visitType === 'new' && !emergency && !completed;
   const footerLabel = completed
     ? completedLabel
     : locked
@@ -59,6 +62,8 @@ export default function QueueEntryCard({
         active ? c.queueCardActive : '',
         locked ? c.queueCardLocked : '',
         emergency && !completed ? c.queueCardEmergency : '',
+        isFollowUp && !active ? c.queueCardFollowUp : '',
+        isNewVisit && !active ? c.queueCardNew : '',
         completed ? c.queueCardCompleted : '',
       ]
         .filter(Boolean)
@@ -71,6 +76,8 @@ export default function QueueEntryCard({
           className={[
             c.queueCardAvatar,
             emergency && !completed ? c.queueCardAvatarEmergency : '',
+            isFollowUp && !active && !emergency ? c.queueCardAvatarFollowUp : '',
+            isNewVisit && !active && !emergency ? c.queueCardAvatarNew : '',
             active ? c.queueCardAvatarActive : '',
           ]
             .filter(Boolean)

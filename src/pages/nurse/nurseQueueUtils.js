@@ -79,6 +79,7 @@ export function mapQueueEntry(entry) {
     name: patientDisplayName(patient),
     sexAge: formatSexAge(patient),
     patientIdLabel: formatPatientId(patient),
+    visitType: entry.visit?.visit_type || 'new',
   };
 }
 

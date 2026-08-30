@@ -79,11 +79,15 @@ export default function FrontOfficeDashboardPage() {
 
   async function handleCheckIn(patient, intake) {
     const destLabel = routingLabel(intake.routing_destination) || intake.routing_destination;
+    const isFollowUp = Boolean(patient.has_scheduled_follow_up);
+    const routePhrase = isFollowUp
+      ? `route follow up to ${destLabel}`
+      : `route new to ${destLabel}`;
     if (!(await confirmAction({
       title: 'Check in patient?',
       text: intake.is_emergency
         ? `Route ${patientName(patient)} to ${destLabel} with emergency priority?`
-        : `Check in ${patientName(patient)} and route to ${destLabel}?`,
+        : `Check in ${patientName(patient)} and ${routePhrase}?`,
       icon: 'question',
       confirmButtonText: 'Check in',
     }))) return;
@@ -95,7 +99,7 @@ export default function FrontOfficeDashboardPage() {
       const routedLabel = routingLabel(dept) || dept;
       const msg = intake.is_emergency
         ? `${patientName(patient)} routed to ${routedLabel} (emergency priority).`
-        : `${patientName(patient)} routed to ${routedLabel}.`;
+        : `${patientName(patient)} ${isFollowUp ? 'routed follow up' : 'routed new'} to ${routedLabel}.`;
       showToast(msg, 'success');
       resetSearch();
     } catch (err) {

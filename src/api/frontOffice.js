@@ -25,3 +25,28 @@ export function verifyConsentOtp({ phone, otp }) {
     body: JSON.stringify({ phone, otp }),
   });
 }
+
+export function getFrontOfficeAppointments({ doctorId } = {}) {
+  const qs = doctorId ? `?doctor_id=${encodeURIComponent(doctorId)}` : '';
+  return apiRequest(`/api/v1/front-office/appointments${qs}`);
+}
+
+export function cancelFrontOfficeAppointment(consultationId, body) {
+  return apiRequest(`/api/v1/front-office/appointments/${consultationId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function cancelFrontOfficeAppointmentsByDate(body) {
+  return apiRequest('/api/v1/front-office/appointments/cancel-by-date', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export const frontOfficeAppointmentsApi = {
+  getAppointments: ({ doctorId } = {}) => getFrontOfficeAppointments({ doctorId }),
+  cancelAppointment: cancelFrontOfficeAppointment,
+  cancelAppointmentsByDate: cancelFrontOfficeAppointmentsByDate,
+};

@@ -163,13 +163,32 @@ export default function DoctorConsultationPage() {
     if (patient.status === 'completed') {
       return <span className={c.badgeCompleted}>Completed</span>;
     }
+
+    const badges = [];
     if (patient.isEmergency) {
-      return <span className={c.badgeEmergency}>Emergency</span>;
+      badges.push(
+        <span key="emergency" className={c.badgeEmergency}>
+          Emergency
+        </span>
+      );
+    } else if (patient.visitType === 'follow_up') {
+      badges.push(
+        <span key="follow-up" className={c.badgeFollowUp}>
+          Follow-up
+        </span>
+      );
+    } else if (patient.visitType === 'new') {
+      badges.push(
+        <span key="new" className={c.badgeNew}>
+          New
+        </span>
+      );
     }
+
     if (patient.status === 'in_progress') {
       const mine = isLockedToMe(patient);
-      return (
-        <span className={c.badgeProgress}>
+      badges.push(
+        <span key="progress" className={c.badgeProgress}>
           In progress
           {mine ? (
             <span className={c.lockTag}>
@@ -182,8 +201,15 @@ export default function DoctorConsultationPage() {
           ) : null}
         </span>
       );
+    } else if (!badges.length) {
+      badges.push(
+        <span key="pending" className={c.badgePending}>
+          Pending
+        </span>
+      );
     }
-    return <span className={c.badgePending}>Pending</span>;
+
+    return badges;
   }
 
   const workspaceActive =
@@ -285,6 +311,7 @@ export default function DoctorConsultationPage() {
                       locked={isLockedToOther(p)}
                       emergency={p.isEmergency && p.status !== 'completed'}
                       completed={p.status === 'completed'}
+                      visitType={p.visitType}
                       disabled={actionLoading}
                       onClick={() => handleStartConsultation(p)}
                       openLabel="Start consultation"
@@ -308,7 +335,11 @@ export default function DoctorConsultationPage() {
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className={`${c.banner} shrink-0`}>
+              <div
+                className={`${c.banner} ${
+                  activePatient.visitType === 'follow_up' ? c.bannerFollowUp : c.bannerNew
+                } shrink-0`}
+              >
                 <div>
                   <span className={c.bannerLabel}>Active patient</span>
                   <strong className={c.bannerValue}>{activePatient.name}</strong>

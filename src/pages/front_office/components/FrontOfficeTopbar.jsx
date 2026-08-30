@@ -31,6 +31,12 @@ export default function FrontOfficeTopbar() {
           >
             Today&apos;s registrations
           </NavLink>
+          <NavLink
+            to="/front_office/appointments"
+            className={({ isActive }) => `${navLink} ${isActive ? navActive : ''}`}
+          >
+            Appointments
+          </NavLink>
         </nav>
       </div>
       <TopbarSignOutButton moduleLabel='Front Office' className={topbar.signOut} />

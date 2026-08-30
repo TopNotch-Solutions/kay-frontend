@@ -32,9 +32,9 @@ function Step4Form() {
     }
     if (!(await confirmAction({
       title: 'Finish registration?',
-      text: `Register ${draft.first_name} ${draft.last_name} and route to ${doctorLabel}?`,
+      text: `Register ${draft.first_name} ${draft.last_name} and route new to ${doctorLabel}?`,
       icon: 'question',
-      confirmButtonText: `Finish & route to ${doctorLabel}`,
+      confirmButtonText: `Finish & route new to ${doctorLabel}`,
     }))) return;
     await submitRegistration();
   }
@@ -84,7 +84,7 @@ function Step4Form() {
           Back
         </Link>
         <button type="button" className={fo.btnPrimary} disabled={submitting} onClick={onFinish}>
-          {submitting ? 'Finishing…' : `Finish & route to ${doctorLabel}`}
+          {submitting ? 'Finishing…' : `Finish & route new to ${doctorLabel}`}
         </button>
       </footer>
     </div>
